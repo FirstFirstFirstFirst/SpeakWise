@@ -1,8 +1,128 @@
+"use client";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, Mic } from "lucide-react";
-
+import { Upload, Mic, StopCircle, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 export default function RecordPage() {
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
+
+  const [currentPrompt, setCurrentPrompt] = useState("");
+  const prompts = [
+    "Tell me about what you did yesterday. What was the most interesting part of your day?",
+    "Describe your favorite meal. What ingredients does it contain and why do you enjoy it so much?",
+    "What kind of food is popular in your country? Has this changed in recent years?",
+    "Do you prefer eating at home or in restaurants? Why?",
+    "Tell me about a traditional dish from your hometown. How is it prepared?",
+    "Describe your morning routine. Has it changed much over the past few years?",
+    "What changes have you seen in your hometown over the last few years?",
+    "Do you think it's important to maintain a work-life balance? How do you achieve this?",
+    "What types of outdoor activities do you enjoy? How often do you participate in them?",
+    "Describe a skill you would like to learn. Why is this skill important to you?",
+  ];
+
+  // Function to select a random prompt
+  const getRandomPrompt = () => {
+    const randomIndex = Math.floor(Math.random() * prompts.length);
+    return prompts[randomIndex];
+  };
+
+  // Set initial prompt
+  useState(() => {
+    setCurrentPrompt(getRandomPrompt());
+  });
+
+  // Function to change the prompt
+  const changePrompt = () => {
+    setCurrentPrompt(getRandomPrompt());
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, {
+          type: "audio/wav",
+        });
+        const audioUrl = URL.createObjectURL(audioBlob);
+        setAudioBlob(audioBlob);
+        setAudioUrl(audioUrl);
+        stopMediaTracks(stream);
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (error) {
+      console.error("Error accessing microphone:", error);
+      toast.error(
+        "Could not access your microphone. Please check permissions."
+      );
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const stopMediaTracks = (stream: MediaStream) => {
+    stream.getTracks().forEach((track) => {
+      track.stop();
+    });
+  };
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.type.startsWith("audio/")) {
+      const url = URL.createObjectURL(file);
+      setAudioBlob(file);
+      setAudioUrl(url);
+    } else if (file) {
+      toast.error("Please upload an audio file");
+    }
+  };
+
+  const analyzeAudio = async () => {
+    if (!audioBlob) {
+      toast.error("Please record or upload audio first");
+      return;
+    }
+
+    toast.loading("Your speech is being analyzed...");
+
+    // Create a promise that resolves after the timeout
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+    // Wait for 2 seconds
+    await sleep(2000);
+
+    toast.success("Analysis Complete: Your pronunciation score: 85/100");
+    router.push("/analysis");
+  };
+
   return (
     <div className="container mx-auto px-4 py-6 sm:py-10 space-y-6 sm:space-y-8 max-w-4xl">
       <div className="text-center space-y-2">
@@ -13,6 +133,28 @@ export default function RecordPage() {
           Record your voice and get instant feedback to improve your English
         </p>
       </div>
+      {/* Practice Text Card - Added component */}
+      <Card className="shadow-md">
+        <CardHeader className="text-center py-4">
+          <CardTitle className="text-xl flex items-center justify-center">
+            <span>Speaking Practice Question</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="ml-2"
+              onClick={changePrompt}
+              title="Get a new question"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4 sm:p-6">
+          <div className="bg-muted/50 p-4 rounded-lg border border-border">
+            <p className="text-base">{currentPrompt}</p>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card className="shadow-md">
         <CardHeader className="text-center py-4 sm:py-6">
@@ -21,28 +163,92 @@ export default function RecordPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col items-center space-y-4 sm:space-y-6 p-4 sm:p-6">
-          <div className="flex flex-col items-center justify-center w-full h-32 sm:h-40 border-2 border-dashed rounded-lg border-muted-foreground/25 bg-muted/50">
-            <div className="flex flex-col items-center justify-center space-y-2">
-              <div className="flex items-center justify-center space-x-3 sm:space-x-4">
-                <div className="p-2 sm:p-3 rounded-full bg-primary/10">
-                  <Upload className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                </div>
-                <div className="p-2 sm:p-3 rounded-full bg-primary/10">
-                  <Mic className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                </div>
-              </div>
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                Upload audio or Start recording
-              </p>
+          {audioUrl ? (
+            <div className="w-full">
+              <audio className="w-full" src={audioUrl} controls />
             </div>
-          </div>
+          ) : (
+            <div
+              className="flex flex-col items-center justify-center w-full h-32 sm:h-40 border-2 border-dashed rounded-lg border-muted-foreground/25 bg-muted/50 cursor-pointer"
+              onClick={!isRecording ? handleUploadClick : undefined}
+            >
+              <div className="flex flex-col items-center justify-center space-y-2">
+                <div className="flex items-center justify-center space-x-3 sm:space-x-4">
+                  <div
+                    className="p-2 sm:p-3 rounded-full bg-primary/10 cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleUploadClick();
+                    }}
+                  >
+                    <Upload className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                  </div>
+                  <div
+                    className="p-2 sm:p-3 rounded-full bg-primary/10 cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!isRecording) {
+                        startRecording();
+                      }
+                    }}
+                  >
+                    <Mic className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                  </div>
+                </div>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  Upload audio or Start recording
+                </p>
+              </div>
+            </div>
+          )}
 
-          <Button
-            size="lg"
-            className="rounded-full px-6 sm:px-8 w-full sm:w-auto"
-          >
-            Start Recording
-          </Button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            accept="audio/*"
+            className="hidden"
+          />
+
+          {!audioUrl ? (
+            <Button
+              size="lg"
+              className="rounded-full px-6 sm:px-8 w-full sm:w-auto bg-black text-white cursor-pointer"
+              onClick={isRecording ? stopRecording : startRecording}
+            >
+              {isRecording ? (
+                <>
+                  <StopCircle className="mr-2 h-4 w-4" /> Stop Recording
+                </>
+              ) : (
+                <>
+                  <Mic className="mr-2 h-4 w-4" />
+                  <p>Start Recording</p>
+                </>
+              )}
+            </Button>
+          ) : (
+            <div className="flex space-x-3">
+              <Button
+                size="lg"
+                variant="outline"
+                className="rounded-full px-6 sm:px-8"
+                onClick={() => {
+                  setAudioUrl(null);
+                  setAudioBlob(null);
+                }}
+              >
+                Record Again
+              </Button>
+              <Button
+                size="lg"
+                className="rounded-full px-6 sm:px-8 bg-black text-white"
+                onClick={analyzeAudio}
+              >
+                Analyze Speech
+              </Button>
+            </div>
+          )}
 
           <div className="text-xs sm:text-sm text-center text-muted-foreground">
             <p>Speak clearly and at a natural pace for best results</p>
