@@ -1,6 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, Mic } from "lucide-react";
+import { PerformanceVisualization } from "@/components/charts/performance";
+import { ProgressTimeline } from "@/components/charts/progress-timeline";
 
 export default function DashboardPage() {
   return (
@@ -54,15 +56,8 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="h-[150px] sm:h-[200px] w-full bg-muted rounded-lg flex items-center justify-center">
-            <div className="text-center px-2">
-              <p className="text-sm text-muted-foreground">
-                Performance Visualization
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Charts showing your speaking metrics over time
-              </p>
-            </div>
+          <div className="bg-background rounded-lg border border-border">
+            <PerformanceVisualization />
           </div>
         </CardContent>
       </Card>
@@ -74,15 +69,8 @@ export default function DashboardPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="px-4 sm:px-6 pb-6">
-          <div className="h-[150px] sm:h-[200px] w-full bg-muted rounded-lg flex items-center justify-center">
-            <div className="text-center px-2">
-              <p className="text-sm text-muted-foreground">
-                Improvement Timeline
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Chart showing your progress over the last 30 days
-              </p>
-            </div>
+          <div className="bg-background rounded-lg border border-border">
+            <ProgressTimeline />
           </div>
 
           <div className="mt-4 sm:mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">

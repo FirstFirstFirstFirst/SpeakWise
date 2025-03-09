@@ -1,7 +1,90 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+"use client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { jsPDF } from "jspdf";
+import { useState } from "react";
+import Link from "next/link";
 
 export default function AnalysisPage() {
+  const [transcript, setTranscript] = useState(
+    "Hello, my name is Sarah and I'm learning English. I've been studying for about six months now. I find grammar to be quite challenging, especially the use of prepositions. Sometimes I struggle with pronunciation as well, particularly with the 'th' sound. I enjoy watching English movies and listening to podcasts to improve my listening skills. I hope to become fluent in English within the next year so that I can apply for jobs at international companies."
+  );
+
+  const [feedback, setFeedback] = useState({
+    pronunciation:
+      "Your pronunciation is generally clear, but you have some difficulty with the 'th' sound. Try placing your tongue between your teeth and gently blowing air out.",
+    grammar:
+      'You used prepositions correctly in most cases, but there were a few errors. For example, you said "studying for" instead of "studying since" when referring to time.',
+    fluency:
+      "Your speech has a good pace, but there were several pauses that interrupted the flow. Practice speaking continuously to improve fluency.",
+    vocabulary:
+      "You used a good range of vocabulary. Consider expanding your professional vocabulary if you're interested in working at international companies.",
+  });
+
+  // Download transcript as PDF
+  const downloadTranscriptAsPDF = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.text("Speech Transcript", 20, 20);
+    doc.setFontSize(12);
+    const splitText = doc.splitTextToSize(transcript, 170);
+    doc.text(splitText, 20, 30);
+    doc.setFontSize(10);
+    doc.text(
+      `Duration: 45 seconds | Generated: ${new Date().toLocaleDateString()}`,
+      20,
+      doc.internal.pageSize.height - 20
+    );
+    doc.save("speech-transcript.pdf");
+  };
+
+  // Download feedback as PDF
+  const saveFeedbackAsPDF = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.text("AI Speech Feedback", 20, 20);
+
+    let yPosition = 30;
+    doc.setFontSize(14);
+    doc.text("Pronunciation", 20, yPosition);
+    yPosition += 10;
+    doc.setFontSize(12);
+    const pronText = doc.splitTextToSize(feedback.pronunciation, 170);
+    doc.text(pronText, 20, yPosition);
+    yPosition += pronText.length * 7;
+
+    doc.setFontSize(14);
+    doc.text("Grammar", 20, yPosition);
+    yPosition += 10;
+    doc.setFontSize(12);
+    const grammarText = doc.splitTextToSize(feedback.grammar, 170);
+    doc.text(grammarText, 20, yPosition);
+    yPosition += grammarText.length * 7;
+
+    doc.setFontSize(14);
+    doc.text("Fluency", 20, yPosition);
+    yPosition += 10;
+    doc.setFontSize(12);
+    const fluencyText = doc.splitTextToSize(feedback.fluency, 170);
+    doc.text(fluencyText, 20, yPosition);
+    yPosition += fluencyText.length * 7;
+
+    doc.setFontSize(14);
+    doc.text("Vocabulary", 20, yPosition);
+    yPosition += 10;
+    doc.setFontSize(12);
+    const vocabText = doc.splitTextToSize(feedback.vocabulary, 170);
+    doc.text(vocabText, 20, yPosition);
+
+    doc.setFontSize(10);
+    doc.text(
+      `Generated: ${new Date().toLocaleDateString()}`,
+      20,
+      doc.internal.pageSize.height - 20
+    );
+    doc.save("speech-feedback.pdf");
+  };
   return (
     <div className="container mx-auto px-4 py-6 sm:py-10 max-w-5xl space-y-4 sm:space-y-8">
       <div className="text-center space-y-2">
@@ -38,7 +121,8 @@ export default function AnalysisPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="text-xs sm:text-sm w-full sm:w-auto"
+                className="text-xs sm:text-sm w-full sm:w-auto cursor-pointer"
+                onClick={downloadTranscriptAsPDF}
               >
                 Download Transcript
               </Button>
@@ -91,7 +175,12 @@ export default function AnalysisPage() {
               </div>
             </div>
             <div className="mt-3 sm:mt-4 flex justify-end">
-              <Button size="sm" className="text-xs sm:text-sm w-full sm:w-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs sm:text-sm w-full sm:w-auto cursor-pointer"
+                onClick={saveFeedbackAsPDF}
+              >
                 Save Feedback
               </Button>
             </div>
@@ -135,7 +224,15 @@ export default function AnalysisPage() {
             </div>
           </div>
           <div className="mt-4 sm:mt-6 flex justify-center">
-            <Button className="w-full sm:w-auto">Start Practice Session</Button>
+            <Link href="/" className="block sm:inline-block ">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs sm:text-sm w-full cursor-pointer"
+              >
+                Start Practice Session
+              </Button>
+            </Link>
           </div>
         </CardContent>
       </Card>
