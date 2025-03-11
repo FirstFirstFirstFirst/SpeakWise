@@ -1,26 +1,40 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { jsPDF } from "jspdf";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
+import {
+  generateImprovementSuggestions,
+  ImprovementSuggestion,
+} from "@/utils/speech-improvement-generator";
 import Link from "next/link";
 
 export default function AnalysisPage() {
-  const [transcript, setTranscript] = useState(
-    "Hello, my name is Sarah and I'm learning English. I've been studying for about six months now. I find grammar to be quite challenging, especially the use of prepositions. Sometimes I struggle with pronunciation as well, particularly with the 'th' sound. I enjoy watching English movies and listening to podcasts to improve my listening skills. I hope to become fluent in English within the next year so that I can apply for jobs at international companies."
-  );
-
+  const [transcript, setTranscript] = useState("");
+  const [duration, setDuration] = useState(0);
   const [feedback, setFeedback] = useState({
-    pronunciation:
-      "Your pronunciation is generally clear, but you have some difficulty with the 'th' sound. Try placing your tongue between your teeth and gently blowing air out.",
-    grammar:
-      'You used prepositions correctly in most cases, but there were a few errors. For example, you said "studying for" instead of "studying since" when referring to time.',
-    fluency:
-      "Your speech has a good pace, but there were several pauses that interrupted the flow. Practice speaking continuously to improve fluency.",
-    vocabulary:
-      "You used a good range of vocabulary. Consider expanding your professional vocabulary if you're interested in working at international companies.",
+    pronunciation: "",
+    grammar: "",
+    fluency: "",
+    vocabulary: "",
   });
+  const [suggestions, setSuggestions] = useState<ImprovementSuggestion[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    // Retrieve transcript and duration from localStorage
+    const savedTranscript = localStorage.getItem("speechTranscript") || "";
+    const savedDuration = localStorage.getItem("speechDuration") || "0";
+
+    setTranscript(savedTranscript);
+    setDuration(parseInt(savedDuration, 10));
+
+    // Analyze transcript using Gemini API
+    if (savedTranscript) {
+      analyzeSpeech(savedTranscript);
+    }
+  }, []);
 
   // Download transcript as PDF
   const downloadTranscriptAsPDF = () => {
@@ -32,7 +46,7 @@ export default function AnalysisPage() {
     doc.text(splitText, 20, 30);
     doc.setFontSize(10);
     doc.text(
-      `Duration: 45 seconds | Generated: ${new Date().toLocaleDateString()}`,
+      `Duration: ${duration} seconds | Generated: ${new Date().toLocaleDateString()}`,
       20,
       doc.internal.pageSize.height - 20
     );
@@ -85,6 +99,61 @@ export default function AnalysisPage() {
     );
     doc.save("speech-feedback.pdf");
   };
+
+  const analyzeSpeech = async (speechTranscript: string) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/analyze-speech", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ transcript: speechTranscript }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to analyze speech");
+      }
+
+      const feedbackData = await response.json();
+      setFeedback(feedbackData);
+
+      const generatedSuggestions = generateImprovementSuggestions(feedbackData);
+
+      setSuggestions(generatedSuggestions);
+    } catch (error) {
+      console.error("Error analyzing speech:", error);
+      toast?.error("Failed to analyze speech. Please try again.");
+      // Set fallback feedback
+      setFeedback({
+        pronunciation: "Analysis unavailable. Please try again.",
+        grammar: "Analysis unavailable. Please try again.",
+        fluency: "Analysis unavailable. Please try again.",
+        vocabulary: "Analysis unavailable. Please try again.",
+      });
+
+      setSuggestions([
+        {
+          title: "Record Longer Samples",
+          description:
+            "Provide at least 30 seconds of speech for better analysis",
+        },
+        {
+          title: "Speak Clearly",
+          description:
+            "Try to speak at a moderate pace with clear articulation",
+        },
+        {
+          title: "Varied Content",
+          description:
+            "Discuss different topics to show range of vocabulary and grammar",
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-6 sm:py-10 max-w-5xl space-y-4 sm:space-y-8">
       <div className="text-center space-y-2">
@@ -104,25 +173,19 @@ export default function AnalysisPage() {
           <CardContent className="p-4 sm:p-6 pt-0">
             <div className="bg-muted p-3 sm:p-4 rounded-lg h-[200px] sm:h-[250px] md:h-[300px] overflow-y-auto">
               <p className="text-xs sm:text-sm leading-relaxed">
-                Hello, my name is Sarah and I&apos;m learning English. I&apos;ve
-                been studying for about six months now. I find grammar to be
-                quite challenging, especially the use of prepositions. Sometimes
-                I struggle with pronunciation as well, particularly with the
-                &apos;th&apos; sound. I enjoy watching English movies and
-                listening to podcasts to improve my listening skills. I hope to
-                become fluent in English within the next year so that I can
-                apply for jobs at international companies.
+                {transcript || "No transcript available."}
               </p>
             </div>
             <div className="mt-3 sm:mt-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
               <div className="text-xs sm:text-sm text-muted-foreground">
-                <span>Duration: 45 seconds</span>
+                <span>Duration: {duration} seconds</span>
               </div>
               <Button
                 variant="outline"
                 size="sm"
                 className="text-xs sm:text-sm w-full sm:w-auto cursor-pointer"
                 onClick={downloadTranscriptAsPDF}
+                disabled={!transcript}
               >
                 Download Transcript
               </Button>
@@ -136,43 +199,46 @@ export default function AnalysisPage() {
           </CardHeader>
           <CardContent className="p-4 sm:p-6 pt-0">
             <div className="bg-muted p-3 sm:p-4 rounded-lg h-[200px] sm:h-[250px] md:h-[300px] overflow-y-auto">
-              <div className="space-y-3 sm:space-y-4">
-                <div>
-                  <h3 className="text-xs sm:text-sm font-medium">
-                    Pronunciation
-                  </h3>
-                  <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                    Your pronunciation is generally clear, but you have some
-                    difficulty with the &apos;th&apos; sound. Try placing your
-                    tongue between your teeth and gently blowing air out.
-                  </p>
+              {isLoading ? (
+                <div className="flex justify-center items-center h-full">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
-                <div>
-                  <h3 className="text-xs sm:text-sm font-medium">Grammar</h3>
-                  <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                    You used prepositions correctly in most cases, but there
-                    were a few errors. For example, you said &quot;studying
-                    for&quot; instead of &quot;studying since&quot; when
-                    referring to time.
-                  </p>
+              ) : transcript ? (
+                <div className="space-y-3 sm:space-y-4">
+                  <div>
+                    <h3 className="text-xs sm:text-sm font-medium">
+                      Pronunciation
+                    </h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                      {feedback.pronunciation}
+                    </p>
+                  </div>
+                  <div>
+                    <h3 className="text-xs sm:text-sm font-medium">Grammar</h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                      {feedback.grammar}
+                    </p>
+                  </div>
+                  <div>
+                    <h3 className="text-xs sm:text-sm font-medium">Fluency</h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                      {feedback.fluency}
+                    </p>
+                  </div>
+                  <div>
+                    <h3 className="text-xs sm:text-sm font-medium">
+                      Vocabulary
+                    </h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                      {feedback.vocabulary}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-xs sm:text-sm font-medium">Fluency</h3>
-                  <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                    Your speech has a good pace, but there were several pauses
-                    that interrupted the flow. Practice speaking continuously to
-                    improve fluency.
-                  </p>
-                </div>
-                <div>
-                  <h3 className="text-xs sm:text-sm font-medium">Vocabulary</h3>
-                  <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                    You used a good range of vocabulary. Consider expanding your
-                    professional vocabulary if you&apos;re interested in working
-                    at international companies.
-                  </p>
-                </div>
-              </div>
+              ) : (
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  No feedback available.
+                </p>
+              )}
             </div>
             <div className="mt-3 sm:mt-4 flex justify-end">
               <Button
@@ -180,6 +246,7 @@ export default function AnalysisPage() {
                 size="sm"
                 className="text-xs sm:text-sm w-full sm:w-auto cursor-pointer"
                 onClick={saveFeedbackAsPDF}
+                disabled={!transcript || isLoading}
               >
                 Save Feedback
               </Button>
@@ -197,30 +264,29 @@ export default function AnalysisPage() {
         <CardContent className="p-4 sm:p-6 pt-0">
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-              <div className="bg-muted p-3 sm:p-4 rounded-lg">
-                <h3 className="text-xs sm:text-sm font-medium">
-                  Practice &apos;th&apos; Sound
-                </h3>
-                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                  Try these words: think, through, three, thanks, the, this
-                </p>
-              </div>
-              <div className="bg-muted p-3 sm:p-4 rounded-lg">
-                <h3 className="text-xs sm:text-sm font-medium">
-                  Preposition Usage
-                </h3>
-                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                  Review time prepositions: for, since, during, in, at, on
-                </p>
-              </div>
-              <div className="bg-muted p-3 sm:p-4 rounded-lg">
-                <h3 className="text-xs sm:text-sm font-medium">
-                  Fluency Exercise
-                </h3>
-                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                  Read aloud for 5 minutes daily without stopping
-                </p>
-              </div>
+              {isLoading ? (
+                <div className="col-span-full flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : suggestions.length > 0 ? (
+                suggestions.map((suggestion, index) => (
+                  <div key={index} className="bg-muted p-3 sm:p-4 rounded-lg">
+                    <h3 className="text-xs sm:text-sm font-medium">
+                      {suggestion.title}
+                    </h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                      {suggestion.description}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <div className="col-span-full text-center py-4">
+                  <p className="text-sm text-muted-foreground">
+                    Record your speech to get personalized improvement
+                    suggestions.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
           <div className="mt-4 sm:mt-6 flex justify-center">
@@ -230,7 +296,7 @@ export default function AnalysisPage() {
                 size="sm"
                 className="text-xs sm:text-sm w-full cursor-pointer"
               >
-                Start Practice Session
+                Start New Practice Session
               </Button>
             </Link>
           </div>

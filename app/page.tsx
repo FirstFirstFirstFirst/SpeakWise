@@ -1,10 +1,11 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Upload, Mic, StopCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+
 export default function RecordPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
@@ -13,6 +14,11 @@ export default function RecordPage() {
   const audioChunksRef = useRef<Blob[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+
+  // Recording timer states
+  const [recordingTime, setRecordingTime] = useState(0);
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const MAX_RECORDING_TIME = 5 * 60; // 5 minutes in seconds
 
   const [currentPrompt, setCurrentPrompt] = useState("");
   const prompts = [
@@ -42,6 +48,40 @@ export default function RecordPage() {
   // Function to change the prompt
   const changePrompt = () => {
     setCurrentPrompt(getRandomPrompt());
+  };
+
+  // Timer function to track recording duration
+  useEffect(() => {
+    if (isRecording) {
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime((prevTime) => {
+          const newTime = prevTime + 1;
+          if (newTime >= MAX_RECORDING_TIME) {
+            stopRecording();
+            return 0;
+          }
+          return newTime;
+        });
+      }, 1000);
+    } else {
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+      setRecordingTime(0);
+    }
+
+    return () => {
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+      }
+    };
+  }, [isRecording]);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
   };
 
   const startRecording = async () => {
@@ -106,21 +146,67 @@ export default function RecordPage() {
   };
 
   const analyzeAudio = async () => {
+    const loadingToastId = toast.loading("Your speech is being analyzed...");
     if (!audioBlob) {
       toast.error("Please record or upload audio first");
       return;
     }
 
+    // Show loading toast
     toast.loading("Your speech is being analyzed...");
 
-    // Create a promise that resolves after the timeout
-    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    try {
+      // Convert blob to File object
+      const audioFile = new File([audioBlob], "recording.wav", {
+        type: "audio/wav",
+      });
 
-    // Wait for 2 seconds
-    await sleep(2000);
+      // Create FormData to upload the file
+      const formData = new FormData();
+      formData.append("file", audioFile);
 
-    toast.success("Analysis Complete: Your pronunciation score: 85/100");
-    router.push("/analysis");
+      // Upload the file to get a temporary URL
+      const uploadResponse = await fetch("/api/upload-audio", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error("Failed to upload audio file");
+      }
+
+      const { audioUrl } = await uploadResponse.json();
+
+      // Send the URL to AssemblyAI for transcription
+      const transcriptResponse = await fetch("/api/transcribe", {
+        // Changed endpoint
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ audioUrl }),
+      });
+
+      if (!transcriptResponse.ok) {
+        throw new Error("Transcription failed");
+      }
+
+      const { transcript, duration } = await transcriptResponse.json();
+
+      // Store transcription data in localStorage for analysis page
+      localStorage.setItem("speechTranscript", transcript);
+      localStorage.setItem("speechDuration", duration.toString());
+
+      toast.dismiss(loadingToastId);
+      toast.success("Analysis Complete!");
+
+      // Navigate to analysis page
+      router.push("/analysis");
+    } catch (error) {
+      console.error("Error analyzing audio:", error);
+      toast.dismiss(loadingToastId);
+      toast.error("Error analyzing speech. Please try again.");
+    }
   };
 
   return (
@@ -159,7 +245,12 @@ export default function RecordPage() {
       <Card className="shadow-md">
         <CardHeader className="text-center py-4 sm:py-6">
           <CardTitle className="text-xl sm:text-2xl">
-            Record Your Voice
+            Record Your Voice{" "}
+            {isRecording && (
+              <span className="text-sm font-normal ml-2 text-red-500">
+                Recording: {formatTime(recordingTime)} / 5:00
+              </span>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col items-center space-y-4 sm:space-y-6 p-4 sm:p-6">
@@ -196,7 +287,7 @@ export default function RecordPage() {
                   </div>
                 </div>
                 <p className="text-xs sm:text-sm text-muted-foreground">
-                  Upload audio or Start recording
+                  Upload audio or Start recording (5 minute limit)
                 </p>
               </div>
             </div>
@@ -252,6 +343,7 @@ export default function RecordPage() {
 
           <div className="text-xs sm:text-sm text-center text-muted-foreground">
             <p>Speak clearly and at a natural pace for best results</p>
+            <p>Maximum recording time: 5 minutes</p>
           </div>
         </CardContent>
       </Card>
