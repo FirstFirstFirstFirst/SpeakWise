@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile } from "fs/promises";
-import { join } from "path";
+import { put } from "@vercel/blob";
 import { v4 as uuidv4 } from "uuid";
-import fs from "fs";
+
+export const config = {
+  runtime: "edge",
+};
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,25 +18,16 @@ export async function POST(request: NextRequest) {
 
     // Create unique filename
     const filename = `${uuidv4()}.wav`;
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
 
-    // Create uploads directory if it doesn't exist
-    const uploadDir = join(process.cwd(), "public", "uploads");
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
+    // Upload file to Vercel Blob
+    const blob = await put(filename, file, {
+      access: "public",
+    });
 
-    // Write file to uploads directory
-    await writeFile(join(uploadDir, filename), buffer);
+    console.log("File uploaded successfully to Vercel Blob:", blob.url);
 
-    // Return the public URL
-    const audioUrl = `${
-      process.env.NEXT_PUBLIC_BASE_URL || ""
-    }/uploads/${filename}`;
-
-    console.log("File uploaded successfully:", audioUrl);
-    return NextResponse.json({ audioUrl });
+    // Return the public URL provided by Vercel Blob
+    return NextResponse.json({ audioUrl: blob.url });
   } catch (error) {
     console.error("Error uploading file:", error);
     return NextResponse.json(
