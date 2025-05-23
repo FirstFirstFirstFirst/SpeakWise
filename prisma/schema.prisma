@@ -1,0 +1,45 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model VoiceRecording {
+  id              String    @id @default(cuid())
+  userId          String    // Clerk user ID
+  blobUrl         String    // URL from Vercel Blob
+  blobPathname    String    // Pathname from Vercel Blob for deletion
+  transcript      String?   // Optional transcript of the recording
+  duration        Int       // Duration in seconds
+  languageDialect String?   // Selected language dialect for analysis
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Feedback data
+  feedback        VoiceRecordingFeedback?
+
+  @@index([userId])
+  @@map("voice_recordings")
+}
+
+model VoiceRecordingFeedback {
+  id              String    @id @default(cuid())
+  recordingId     String    @unique
+  pronunciation   String    @db.Text
+  grammar         String    @db.Text
+  fluency        String    @db.Text
+  vocabulary     String    @db.Text
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // Relation to recording
+  recording      VoiceRecording @relation(fields: [recordingId], references: [id], onDelete: Cascade)
+
+  @@map("voice_recording_feedback")
+} 
