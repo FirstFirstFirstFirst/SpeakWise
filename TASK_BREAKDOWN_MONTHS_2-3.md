@@ -93,7 +93,7 @@
 
 - **2.2.2** Create language/dialect-specific prompts
     - Time: 10 hours (increased)
-    - Files: `utils/lm-dialect-prompts.ts`
+    - Files: `utils/lm-dialect-prompts.ts`p
     - Tasks: Customize AI analysis prompts for each identified language and dialect group to improve accuracy and relevance of feedback.
 
 - **2.2.3** Implement language/dialect-aware analysis
