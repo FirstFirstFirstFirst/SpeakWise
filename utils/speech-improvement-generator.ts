@@ -1,16 +1,23 @@
+import { LanguageDialectType } from "@/types/user";
+import { getFeedbackTemplate } from "./lm-dialect-feedback-templates";
+
 export interface FeedbackResponse {
   pronunciation: string;
   grammar: string;
   fluency: string;
   vocabulary: string;
+  languageDialectSpecificFeedback?: string[];
 }
 
 export interface ImprovementSuggestion {
   title: string;
   description: string;
+  category?: 'pronunciation' | 'grammar' | 'fluency' | 'vocabulary' | 'dialect-specific';
 }
+
 export function generateImprovementSuggestions(
-  feedback: FeedbackResponse
+  feedback: FeedbackResponse,
+  languageDialect?: LanguageDialectType
 ): ImprovementSuggestion[] {
   const suggestions: ImprovementSuggestion[] = [];
 
@@ -196,6 +203,85 @@ export function generateImprovementSuggestions(
     }
   }
 
-  // Limit to 3 suggestions maximum
-  return suggestions.slice(0, 3);
+  // Add language/dialect-specific suggestions if available
+  if (languageDialect && languageDialect !== 'general') {
+    const dialectTemplate = getFeedbackTemplate(languageDialect);
+    
+    // Add one dialect-specific suggestion for each category
+    const dialectSuggestions: ImprovementSuggestion[] = [
+      {
+        title: "Pronunciation Focus for Your Language Background",
+        description: dialectTemplate.pronunciationTips[0] || "Practice standard English pronunciation patterns",
+        category: 'dialect-specific'
+      },
+      {
+        title: "Grammar Pattern for Your Language",
+        description: dialectTemplate.grammarTips[0] || "Focus on English grammar structures",
+        category: 'dialect-specific'
+      }
+    ];
+    
+    suggestions.push(...dialectSuggestions);
+  }
+
+  // Add cultural notes as suggestions if available
+  if (languageDialect && languageDialect !== 'general') {
+    const dialectTemplate = getFeedbackTemplate(languageDialect);
+    if (dialectTemplate.culturalNotes.length > 0) {
+      suggestions.push({
+        title: "Cultural Communication Tip",
+        description: dialectTemplate.culturalNotes[0],
+        category: 'dialect-specific'
+      });
+    }
+  }
+
+  // Limit to 5 suggestions maximum, prioritizing dialect-specific ones
+  const dialectSpecific = suggestions.filter(s => s.category === 'dialect-specific');
+  const general = suggestions.filter(s => s.category !== 'dialect-specific');
+  
+  return [...dialectSpecific.slice(0, 2), ...general.slice(0, 3)];
+}
+
+// New function to generate language-specific improvement suggestions
+export function generateLanguageSpecificSuggestions(
+  languageDialect: LanguageDialectType,
+  focusArea?: 'pronunciation' | 'grammar' | 'fluency' | 'vocabulary'
+): ImprovementSuggestion[] {
+  const template = getFeedbackTemplate(languageDialect);
+  const suggestions: ImprovementSuggestion[] = [];
+
+  if (!focusArea || focusArea === 'pronunciation') {
+    suggestions.push({
+      title: "Pronunciation Practice",
+      description: template.pronunciationTips[0] || "Practice standard pronunciation",
+      category: 'pronunciation'
+    });
+  }
+
+  if (!focusArea || focusArea === 'grammar') {
+    suggestions.push({
+      title: "Grammar Focus",
+      description: template.grammarTips[0] || "Practice standard grammar patterns",
+      category: 'grammar'
+    });
+  }
+
+  if (!focusArea || focusArea === 'fluency') {
+    suggestions.push({
+      title: "Fluency Development",
+      description: template.fluencyTips[0] || "Practice natural speech flow",
+      category: 'fluency'
+    });
+  }
+
+  if (!focusArea || focusArea === 'vocabulary') {
+    suggestions.push({
+      title: "Vocabulary Building",
+      description: template.vocabularyTips[0] || "Expand your vocabulary range",
+      category: 'vocabulary'
+    });
+  }
+
+  return suggestions;
 }

@@ -5,7 +5,9 @@ export interface UserProfile {
   firstName?: string;
   lastName?: string;
   imageUrl?: string;
-  dialect?: DialectType;
+  country?: CountryType;
+  primaryLanguage?: string;
+  languageDialect?: LanguageDialectType;
   createdAt: Date;
   updatedAt: Date;
   recordingHistory: RecordingHistory[];
@@ -33,7 +35,7 @@ export interface AnalysisResult {
   vocabulary: VocabularyAnalysis;
   improvements: string[];
   strengths: string[];
-  dialectSpecificFeedback?: string[];
+  languageDialectSpecificFeedback?: string[];
 }
 
 export interface PronunciationAnalysis {
@@ -110,11 +112,52 @@ export interface UserPreferences {
   };
 }
 
-export type DialectType = 
-  | 'thai-english'
-  | 'vietnamese-english' 
-  | 'chinese-english'
+export type LanguageDialectType =
+  // China
+  | 'mandarin-standard'
+  | 'mandarin-beijing'
+  | 'mandarin-northeastern'
+  | 'cantonese-hongkong'
+  | 'cantonese-guangzhou'
+  | 'wu-shanghai'
+  | 'min-fujian'
+  | 'hakka-taiwan'
+  // Myanmar
+  | 'burmese-standard'
+  | 'burmese-yangon'
+  | 'burmese-mandalay'
+  | 'shan-northern'
+  | 'karen-sgaw'
+  // Laos
+  | 'lao-vientiane'
+  | 'lao-luang-prabang'
+  | 'lao-southern'
+  | 'hmong-white'
+  | 'khmu-northern'
+  // Thailand
+  | 'thai-central'
+  | 'thai-northern'
+  | 'thai-northeastern'
+  | 'thai-southern'
+  // Cambodia
+  | 'khmer-phnom-penh'
+  | 'khmer-battambang'
+  | 'khmer-siem-reap'
+  // Vietnam
+  | 'vietnamese-northern'
+  | 'vietnamese-central'
+  | 'vietnamese-southern'
+  // General
   | 'general';
+
+export type CountryType =
+  | 'china'
+  | 'myanmar'
+  | 'laos'
+  | 'thailand'
+  | 'cambodia'
+  | 'vietnam'
+  | 'other';
 
 export type AchievementType = 
   | 'first-recording'

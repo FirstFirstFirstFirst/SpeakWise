@@ -1,6 +1,9 @@
 // app/api/analyze-speech/route.ts
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { LanguageDialectType } from "@/types/user";
+import { generateAnalysisPrompt, getDialectPrompt, DialectPromptConfig } from "@/utils/lm-dialect-prompts";
+import { getProfileById, LanguageDialectProfile } from "@/utils/lm-language-dialect-profiles";
 
 // Initialize the Google Generative AI with your API key
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
@@ -11,11 +14,12 @@ interface FeedbackResponse {
   grammar: string;
   fluency: string;
   vocabulary: string;
+  languageDialectSpecificFeedback?: string[];
 }
 
 export async function POST(request: Request) {
   try {
-    const { transcript } = await request.json();
+    const { transcript, userId, userEmail, languageDialect } = await request.json();
 
     if (
       !transcript ||
@@ -28,26 +32,17 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create the prompt for Gemini to get structured feedback
-    const prompt = `
-      As an expert English language teacher, analyze this speech transcript and provide detailed feedback.
-      
-      Transcript: "${transcript}"
-      
-      Analyze the following aspects:
-      
-      1. PRONUNCIATION: Identify specific sounds, words, or patterns the speaker struggles with. Provide clear, actionable tips for improvement.
-      
-      2. GRAMMAR: Point out grammatical errors with specific examples from the transcript. Suggest corrections and explain the relevant rules briefly.
-      
-      3. FLUENCY: Evaluate speech flow, pauses, hesitations, and overall rhythm. Comment on speaking pace and natural delivery.
-      
-      4. VOCABULARY: Assess vocabulary usage, diversity, and appropriateness. Suggest improvements or alternative word choices where relevant.
-      
-      IMPORTANT: Return ONLY a valid JSON object with exactly these four keys: pronunciation, grammar, fluency, vocabulary.
-      Each value should be a detailed paragraph (3-5 sentences) with specific examples from the transcript and actionable advice.
-      Format all output as a proper JSON object without any other text.
-    `;
+    // Use provided language/dialect or default to general
+    const selectedDialect: LanguageDialectType = languageDialect || 'general';
+    
+    // Generate language/dialect-specific prompt
+    const prompt = generateAnalysisPrompt(transcript, selectedDialect);
+    
+    // Get dialect-specific configuration for additional processing
+    const dialectConfig = getDialectPrompt(selectedDialect);
+    const profile = getProfileById(selectedDialect);
+
+    console.log(`Analyzing speech for user ${userId} (${userEmail}) with ${profile?.name || 'General'} profile`);
 
     // Get the generative model (using a more capable model if needed)
     const model = genAI.getGenerativeModel({
@@ -87,10 +82,21 @@ export async function POST(request: Request) {
         );
         // Handle missing fields by providing default messages
         missingFields.forEach((field) => {
-          feedbackObject[
-            field as keyof FeedbackResponse
-          ] = `No specific ${field} feedback available. Please try again with a longer speech sample.`;
+          if (field !== 'languageDialectSpecificFeedback') {
+            feedbackObject[
+              field as keyof Omit<FeedbackResponse, 'languageDialectSpecificFeedback'>
+            ] = `No specific ${field} feedback available. Please try again with a longer speech sample.`;
+          }
         });
+      }
+
+      // Add language/dialect-specific feedback
+      if (selectedDialect !== 'general' && profile) {
+        feedbackObject.languageDialectSpecificFeedback = generateDialectSpecificTips(
+          selectedDialect,
+          dialectConfig,
+          profile
+        );
       }
     } catch (parseError) {
       console.error("Failed to parse Gemini response as JSON:", parseError);
@@ -121,9 +127,11 @@ export async function POST(request: Request) {
       grammar: ensureValidFeedback(feedbackObject.grammar, "grammar"),
       fluency: ensureValidFeedback(feedbackObject.fluency, "fluency"),
       vocabulary: ensureValidFeedback(feedbackObject.vocabulary, "vocabulary"),
+      languageDialectSpecificFeedback: feedbackObject.languageDialectSpecificFeedback,
     };
 
-    
+    // Log analysis for monitoring (remove in production)
+    console.log(`Speech analysis completed for ${profile?.name || 'General'} speaker`);
 
     return NextResponse.json(validatedFeedback);
   } catch (error) {
@@ -143,6 +151,38 @@ function ensureValidFeedback(feedback: unknown, type: string): string {
     return `We couldn't generate specific ${type} feedback. Please try again with a clearer or longer speech sample.`;
   }
   return feedback;
+}
+
+// Generate dialect-specific tips based on the language profile
+function generateDialectSpecificTips(
+  languageDialect: LanguageDialectType,
+  dialectConfig: DialectPromptConfig,
+  profile: LanguageDialectProfile
+): string[] {
+  const tips: string[] = [];
+  
+  // Add tonal system tips if applicable
+  if (profile.tonalSystem?.hasTones) {
+    tips.push(
+      `Remember that English uses stress patterns, not tones like ${profile.name}. Focus on emphasizing important words rather than using tonal variations.`
+    );
+  }
+  
+  // Add specific pronunciation tips
+  if (dialectConfig.pronunciationFocus.length > 0) {
+    tips.push(
+      `Key pronunciation focus for ${profile.name} speakers: ${dialectConfig.pronunciationFocus.slice(0, 2).join(' and ')}.`
+    );
+  }
+  
+  // Add cultural context tip
+  if (dialectConfig.culturalContext) {
+    tips.push(
+      `Cultural insight: ${dialectConfig.culturalContext.split('.')[0]}.`
+    );
+  }
+  
+  return tips;
 }
 
 // Fallback feedback to use when API fails
