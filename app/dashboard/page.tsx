@@ -3,13 +3,32 @@ import { Button } from "@/components/ui/button";
 import { MessageSquare, Mic } from "lucide-react";
 import { PerformanceVisualization } from "@/components/charts/performance";
 import { ProgressTimeline } from "@/components/charts/progress-timeline";
+import { currentUser } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const user = await currentUser();
+  
+  if (!user) {
+    redirect("/sign-in");
+  }
+
+  // TODO: Fetch user-specific data from database
+  // For now, using mock data but structure is ready for real data
+  const userStats = {
+    pronunciation: 78,
+    grammar: 82,
+    fluency: 65,
+    vocabulary: 70,
+    totalSessions: 24,
+    practiceTime: "12.5 hrs",
+    improvement: "+15%"
+  };
   return (
     <div className="container px-4 sm:px-6 py-6 sm:py-10 space-y-6 sm:space-y-8 mx-auto">
       <div className="text-center space-y-2">
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight">
-          Progress Dashboard
+          Welcome back, {user.firstName || user.emailAddresses[0].emailAddress.split('@')[0]}!
         </h1>
         <p className="text-sm sm:text-base text-muted-foreground">
           Track your English speaking improvement over time
@@ -24,7 +43,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
             <div className="bg-muted p-3 sm:p-4 rounded-lg text-center">
               <div className="text-xl sm:text-2xl md:text-3xl font-bold text-primary">
-                78%
+                {userStats.pronunciation}%
               </div>
               <div className="text-xs sm:text-sm text-muted-foreground mt-1">
                 Pronunciation
@@ -32,7 +51,7 @@ export default function DashboardPage() {
             </div>
             <div className="bg-muted p-3 sm:p-4 rounded-lg text-center">
               <div className="text-xl sm:text-2xl md:text-3xl font-bold text-primary">
-                82%
+                {userStats.grammar}%
               </div>
               <div className="text-xs sm:text-sm text-muted-foreground mt-1">
                 Grammar
@@ -40,7 +59,7 @@ export default function DashboardPage() {
             </div>
             <div className="bg-muted p-3 sm:p-4 rounded-lg text-center">
               <div className="text-xl sm:text-2xl md:text-3xl font-bold text-primary">
-                65%
+                {userStats.fluency}%
               </div>
               <div className="text-xs sm:text-sm text-muted-foreground mt-1">
                 Fluency
@@ -48,7 +67,7 @@ export default function DashboardPage() {
             </div>
             <div className="bg-muted p-3 sm:p-4 rounded-lg text-center">
               <div className="text-xl sm:text-2xl md:text-3xl font-bold text-primary">
-                70%
+                {userStats.vocabulary}%
               </div>
               <div className="text-xs sm:text-sm text-muted-foreground mt-1">
                 Vocabulary
@@ -80,7 +99,7 @@ export default function DashboardPage() {
                   Total Sessions
                 </div>
                 <div className="text-primary font-bold text-sm sm:text-base">
-                  24
+                  {userStats.totalSessions}
                 </div>
               </div>
             </div>
@@ -90,7 +109,7 @@ export default function DashboardPage() {
                   Practice Time
                 </div>
                 <div className="text-primary font-bold text-sm sm:text-base">
-                  12.5 hrs
+                  {userStats.practiceTime}
                 </div>
               </div>
             </div>
@@ -100,7 +119,7 @@ export default function DashboardPage() {
                   Overall Improvement
                 </div>
                 <div className="text-primary font-bold text-sm sm:text-base">
-                  +15%
+                  {userStats.improvement}
                 </div>
               </div>
             </div>

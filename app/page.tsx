@@ -5,8 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Upload, Mic, StopCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 
 export default function RecordPage() {
+  const { user } = useUser();
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -152,6 +154,13 @@ export default function RecordPage() {
       return;
     }
 
+    // Check if user is authenticated
+    if (!user) {
+      toast.error("Please sign in to analyze your speech");
+      router.push("/sign-in");
+      return;
+    }
+
     // Show loading toast
     toast.loading("Your speech is being analyzed...");
 
@@ -164,6 +173,7 @@ export default function RecordPage() {
       // Create FormData to upload the file
       const formData = new FormData();
       formData.append("file", audioFile);
+      formData.append("userId", user.id); // Associate with user
 
       // Upload the file to get a temporary URL
       const uploadResponse = await fetch("/api/upload-audio", {
@@ -179,12 +189,15 @@ export default function RecordPage() {
 
       // Send the URL to AssemblyAI for transcription
       const transcriptResponse = await fetch("/api/transcribe", {
-        // Changed endpoint
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ audioUrl }),
+        body: JSON.stringify({
+          audioUrl,
+          userId: user.id,
+          userEmail: user.emailAddresses[0]?.emailAddress
+        }),
       });
 
       if (!transcriptResponse.ok) {
@@ -196,6 +209,7 @@ export default function RecordPage() {
       // Store transcription data in localStorage for analysis page
       localStorage.setItem("speechTranscript", transcript);
       localStorage.setItem("speechDuration", duration.toString());
+      localStorage.setItem("userId", user.id);
 
       toast.dismiss(loadingToastId);
       toast.success("Analysis Complete!");
@@ -213,10 +227,10 @@ export default function RecordPage() {
     <div className="container mx-auto px-4 py-6 sm:py-10 space-y-6 sm:space-y-8 max-w-4xl">
       <div className="text-center space-y-2">
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight">
-          Unlock Your English Speaking Potential!
+          {user ? `Welcome back, ${user.firstName || user.emailAddresses[0]?.emailAddress.split('@')[0]}!` : 'Unlock Your English Speaking Potential!'}
         </h1>
         <p className="text-sm sm:text-base text-muted-foreground">
-          Record your voice and get instant feedback to improve your English
+          {user ? 'Continue your English learning journey with personalized feedback' : 'Record your voice and get instant feedback to improve your English'}
         </p>
       </div>
       {/* Practice Text Card - Added component */}

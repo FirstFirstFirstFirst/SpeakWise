@@ -4,7 +4,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/navbar";
 import { Toaster } from "@/components/ui/sonner";
-
+import { ClerkProviderWrapper } from "@/app/providers/clerk-provider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -18,16 +18,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
-        <div className="min-h-screen flex flex-col bg-background">
-          <Navbar />
-          <main className="flex-1 flex items-center justify-center">
-            {children}
-          </main>
-          <Toaster />
-        </div>
-      </body>
-    </html>
+    <ClerkProviderWrapper>
+      <html lang="en">
+        <body className={inter.className}>
+          <div className="min-h-screen flex flex-col bg-background">
+            <Navbar />
+            <main className="flex-1 flex items-center justify-center">
+              {children}
+            </main>
+            <Toaster />
+          </div>
+        </body>
+      </html>
+    </ClerkProviderWrapper>
   );
 }

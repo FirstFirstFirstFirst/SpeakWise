@@ -9,8 +9,12 @@ import {
   ImprovementSuggestion,
 } from "@/utils/speech-improvement-generator";
 import Link from "next/link";
+import { useUser } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 
 export default function AnalysisPage() {
+  const { user } = useUser();
+  const router = useRouter();
   const [transcript, setTranscript] = useState("");
   const [duration, setDuration] = useState(0);
   const [feedback, setFeedback] = useState({
@@ -23,9 +27,24 @@ export default function AnalysisPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
+    // Check if user is authenticated
+    if (!user) {
+      toast.error("Please sign in to view analysis results");
+      router.push("/sign-in");
+      return;
+    }
+
     // Retrieve transcript and duration from localStorage
     const savedTranscript = localStorage.getItem("speechTranscript") || "";
     const savedDuration = localStorage.getItem("speechDuration") || "0";
+    const savedUserId = localStorage.getItem("userId") || "";
+
+    // Verify the analysis belongs to the current user
+    if (savedUserId && savedUserId !== user.id) {
+      toast.error("Analysis not found for current user");
+      router.push("/");
+      return;
+    }
 
     setTranscript(savedTranscript);
     setDuration(parseInt(savedDuration, 10));
@@ -34,16 +53,22 @@ export default function AnalysisPage() {
     if (savedTranscript) {
       analyzeSpeech(savedTranscript);
     }
-  }, []);
+  }, [user, router]);
 
   // Download transcript as PDF
   const downloadTranscriptAsPDF = () => {
     const doc = new jsPDF();
     doc.setFontSize(16);
     doc.text("Speech Transcript", 20, 20);
+    doc.setFontSize(10);
+    doc.text(
+      `User: ${user?.emailAddresses[0]?.emailAddress || "Unknown"}`,
+      20,
+      30
+    );
     doc.setFontSize(12);
     const splitText = doc.splitTextToSize(transcript, 170);
-    doc.text(splitText, 20, 30);
+    doc.text(splitText, 20, 40);
     doc.setFontSize(10);
     doc.text(
       `Duration: ${duration} seconds | Generated: ${new Date().toLocaleDateString()}`,
@@ -58,8 +83,14 @@ export default function AnalysisPage() {
     const doc = new jsPDF();
     doc.setFontSize(16);
     doc.text("AI Speech Feedback", 20, 20);
+    doc.setFontSize(10);
+    doc.text(
+      `User: ${user?.emailAddresses[0]?.emailAddress || "Unknown"}`,
+      20,
+      30
+    );
 
-    let yPosition = 30;
+    let yPosition = 40;
     doc.setFontSize(14);
     doc.text("Pronunciation", 20, yPosition);
     yPosition += 10;
@@ -108,7 +139,11 @@ export default function AnalysisPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ transcript: speechTranscript }),
+        body: JSON.stringify({
+          transcript: speechTranscript,
+          userId: user?.id,
+          userEmail: user?.emailAddresses[0]?.emailAddress,
+        }),
       });
 
       if (!response.ok) {
@@ -161,7 +196,12 @@ export default function AnalysisPage() {
           Analysis Results
         </h1>
         <p className="text-sm sm:text-base text-muted-foreground">
-          Review your speech analysis and get personalized feedback
+          {user
+            ? `Review your speech analysis, ${
+                user.firstName ||
+                user.emailAddresses[0]?.emailAddress.split("@")[0]
+              }`
+            : "Review your speech analysis and get personalized feedback"}
         </p>
       </div>
 
