@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs";
+import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";
-import { uploadVoiceRecording, deleteVoiceRecording } from "@/services/storage";
+import { uploadVoiceRecording } from "@/services/storage";
 
 // POST /api/voice-recordings - Create a new recording
 export async function POST(request: Request) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
 // GET /api/voice-recordings - List user's recordings
 export async function GET() {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

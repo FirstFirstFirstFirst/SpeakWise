@@ -1,5 +1,5 @@
-import { PutBlobResult, del, list, put } from "@vercel/blob";
-import { auth } from "@clerk/nextjs";
+import { del, list, put } from "@vercel/blob";
+import { auth } from "@clerk/nextjs/server";
 
 export interface VoiceRecording {
   id: string;
@@ -54,7 +54,7 @@ export async function uploadVoiceRecording(
 export async function deleteVoiceRecording(recordingId: string): Promise<void> {
   try {
     // Verify user owns the recording (path includes userId)
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId || !recordingId.includes(userId)) {
       throw new Error("Unauthorized");
     }

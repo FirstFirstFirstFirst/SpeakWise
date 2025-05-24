@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs";
+import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";
 import { deleteVoiceRecording } from "@/services/storage";
 
@@ -12,7 +12,7 @@ interface RouteParams {
 // GET /api/voice-recordings/[id] - Get a single recording
 export async function GET(request: Request, { params }: RouteParams) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -47,7 +47,7 @@ export async function GET(request: Request, { params }: RouteParams) {
 // DELETE /api/voice-recordings/[id] - Delete a recording
 export async function DELETE(request: Request, { params }: RouteParams) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
