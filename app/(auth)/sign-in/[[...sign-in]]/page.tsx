@@ -6,18 +6,21 @@ export default function SignInPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-gray-900">Welcome back</h1>
-          <p className="text-gray-600 mt-2">Sign in to continue your English learning journey</p>
+          <p className="text-gray-600 mt-2">
+            Sign in to continue your English learning journey
+          </p>
         </div>
-        <SignIn 
+        <SignIn
           appearance={{
             elements: {
               formButtonPrimary: "bg-primary hover:bg-primary/90",
               card: "shadow-lg border",
               headerTitle: "hidden",
               headerSubtitle: "hidden",
-            }
+            },
           }}
-          redirectUrl="/dashboard"
+          signUpUrl="/sign-up" 
+          redirectUrl="/"
         />
       </div>
     </div>
