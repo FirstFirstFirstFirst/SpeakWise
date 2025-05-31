@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,10 +9,10 @@ import { LanguageDialectType, CountryType } from "@/types/user";
 import { toast } from "sonner";
 
 export default function ProfilePage() {
-  const { user } = useUser();
   const router = useRouter();
   const [selectedCountry, setSelectedCountry] = useState<CountryType>();
-  const [selectedLanguageDialect, setSelectedLanguageDialect] = useState<LanguageDialectType>();
+  const [selectedLanguageDialect, setSelectedLanguageDialect] =
+    useState<LanguageDialectType>();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSaveProfile = async () => {
@@ -24,28 +23,30 @@ export default function ProfilePage() {
 
     setIsLoading(true);
     try {
-      // Update user metadata with Clerk
-      await user?.update({
-        unsafeMetadata: {
-          ...user.unsafeMetadata,
+      // Save language dialect preference to database
+      const response = await fetch("/api/user/profile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
           country: selectedCountry,
           languageDialect: selectedLanguageDialect,
-          profileCompleted: true
-        }
+        }),
       });
 
-      toast.success("Profile updated successfully!");
+      if (!response.ok) {
+        throw new Error("Failed to save profile");
+      }
+
+      toast.success("Profile completed successfully!");
       router.push("/dashboard");
     } catch (error) {
-      console.error("Error updating profile:", error);
-      toast.error("Failed to update profile. Please try again.");
+      console.error("Error saving profile:", error);
+      toast.error("Failed to save profile. Please try again.");
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleSkip = () => {
-    router.push("/dashboard");
   };
 
   return (
@@ -55,7 +56,8 @@ export default function ProfilePage() {
           Complete Your Profile
         </h1>
         <p className="text-sm sm:text-base text-muted-foreground">
-          Help us provide personalized English learning feedback based on your language background
+          Help us provide personalized English learning feedback based on your
+          language background
         </p>
       </div>
 
@@ -74,25 +76,20 @@ export default function ProfilePage() {
 
           <div className="flex flex-col sm:flex-row gap-3 pt-6">
             <Button
-              variant="outline"
-              onClick={handleSkip}
-              className="flex-1"
-              disabled={isLoading}
-            >
-              Skip for Now
-            </Button>
-            <Button
               onClick={handleSaveProfile}
               className="flex-1"
-              disabled={!selectedCountry || !selectedLanguageDialect || isLoading}
+              disabled={
+                !selectedCountry || !selectedLanguageDialect || isLoading
+              }
             >
-              {isLoading ? "Saving..." : "Save Profile"}
+              {isLoading ? "Saving..." : "Complete Profile"}
             </Button>
           </div>
 
           <div className="text-center">
             <p className="text-xs text-muted-foreground">
-              You can always update your language preferences later in your profile settings
+              This information helps us provide better pronunciation and grammar
+              feedback tailored to your native language
             </p>
           </div>
         </CardContent>

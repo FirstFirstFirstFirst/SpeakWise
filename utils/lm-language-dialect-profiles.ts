@@ -7,6 +7,7 @@ export interface LanguageDialectProfile {
   nativeName: string;
   description: string;
   flag: string;
+  flagCode: string;
   speakers: string;
   commonChallenges: string[];
   phoneticFeatures: string[];
@@ -32,6 +33,7 @@ export const lancangMekongProfiles: LanguageDialectProfile[] = [
     nativeName: "普通话 (Pǔtōnghuà)",
     description: "Standard Chinese based on Beijing pronunciation",
     flag: "🇨🇳",
+    flagCode: "CN",
     speakers: "918 million native speakers",
     commonChallenges: [
       "Tone vs stress patterns in English",
@@ -75,12 +77,110 @@ export const lancangMekongProfiles: LanguageDialectProfile[] = [
     ]
   },
   {
+    id: "mandarin-beijing",
+    country: "china",
+    name: "Beijing Mandarin",
+    nativeName: "北京话 (Běijīnghuà)",
+    description: "Beijing dialect with erhua (r-coloring) features",
+    flag: "🇨🇳",
+    flagCode: "CN",
+    speakers: "22 million native speakers",
+    commonChallenges: [
+      "Beijing dialect r-coloring (erhua)",
+      "Northern pronunciation features",
+      "Tone-stress interference",
+      "Consonant cluster difficulties"
+    ],
+    phoneticFeatures: [
+      "Erhua (r-coloring) features",
+      "Four tones plus neutral",
+      "Regional pronunciation variations",
+      "Cultural capital influences"
+    ],
+    tonalSystem: {
+      hasTones: true,
+      toneCount: 4,
+      description: "Beijing dialect with distinctive r-coloring affects English pronunciation"
+    },
+    examples: {
+      pronunciation: [
+        "Managing erhua in English pronunciation",
+        "Northern Chinese accent adaptation",
+        "Cultural capital language patterns"
+      ],
+      grammar: [
+        "Beijing dialect grammar patterns",
+        "Standard language adaptation",
+        "Formal vs colloquial usage"
+      ],
+      vocabulary: [
+        "Beijing dialect vocabulary",
+        "Cultural capital terminology",
+        "Northern Chinese expressions"
+      ]
+    },
+    learningFocus: [
+      "Erhua management in English",
+      "Standard pronunciation training",
+      "Accent neutralization"
+    ]
+  },  {
+    id: "mandarin-northeastern",
+    country: "china",
+    name: "Northeastern Mandarin",
+    nativeName: "东北话 (Dōngběihuà)",
+    description: "Northeastern Chinese dialect",
+    flag: "🇨🇳",
+    flagCode: "CN",
+    speakers: "100 million native speakers",
+    commonChallenges: [
+      "Northeastern dialect features",
+      "Regional pronunciation patterns",
+      "Tone variations from standard",
+      "Industrial language background"
+    ],
+    phoneticFeatures: [
+      "Regional tone variations",
+      "Northeastern accent features",
+      "Industrial terminology influence",
+      "Distinct pronunciation patterns"
+    ],
+    tonalSystem: {
+      hasTones: true,
+      toneCount: 4,
+      description: "Northeastern tone patterns with regional variations"
+    },
+    examples: {
+      pronunciation: [
+        "Northeastern accent management",
+        "Regional pronunciation adaptation",
+        "Standard tone pattern training"
+      ],
+      grammar: [
+        "Regional grammar patterns",
+        "Standard language adaptation",
+        "Formal register development"
+      ],
+      vocabulary: [
+        "Northeastern vocabulary",
+        "Industrial terminology",
+        "Regional expressions"
+      ]
+    },
+    learningFocus: [
+      "Standard pronunciation training",
+      "Regional accent neutralization",
+      "Formal language development"
+    ]
+  },
+  {
     id: "cantonese-hongkong",
     country: "china",
     name: "Hong Kong Cantonese",
     nativeName: "廣東話 (Gwóngdūngwá)",
     description: "Cantonese dialect spoken in Hong Kong",
     flag: "🇭🇰",
+    flagCode: "HK",
     speakers: "7.5 million native speakers",
     commonChallenges: [
       "Complex tone system interference",
@@ -121,8 +221,104 @@ export const lancangMekongProfiles: LanguageDialectProfile[] = [
       "Final consonant clarity",
       "Formal register usage"
     ]
+  },  {
+    id: "cantonese-guangzhou",
+    country: "china",
+    name: "Guangzhou Cantonese",
+    nativeName: "广州话 (Gwóngzāuwá)",
+    description: "Mainland Cantonese from Guangzhou",
+    flag: "🇨🇳",
+    flagCode: "CN",
+    speakers: "60 million native speakers",
+    commonChallenges: [
+      "Mainland Cantonese features",
+      "Traditional pronunciation patterns",
+      "Nine-tone system interference",
+      "Business center influences"
+    ],
+    phoneticFeatures: [
+      "Nine-tone system complexity",
+      "Traditional Cantonese features",
+      "Business terminology integration",
+      "Regional accent characteristics"
+    ],
+    tonalSystem: {
+      hasTones: true,
+      toneCount: 9,
+      description: "Complex nine-tone system creates significant English interference"
+    },
+    examples: {
+      pronunciation: [
+        "Complex tone management",
+        "Traditional pronunciation features",
+        "Business accent adaptation"
+      ],
+      grammar: [
+        "Cantonese grammar patterns",
+        "Mandarin influence adaptation",
+        "Business communication structures"
+      ],
+      vocabulary: [
+        "Traditional Cantonese vocabulary",
+        "Business terminology",
+        "Cultural expressions"
+      ]
+    },
+    learningFocus: [
+      "Complex tone neutralization",
+      "Business English development",
+      "Standard pronunciation training"
+    ]
   },
-
+  {
+    id: "wu-shanghai",
+    country: "china",
+    name: "Shanghai Wu",
+    nativeName: "上海话 (Zaonhae-gheú)",
+    description: "Wu dialect from Shanghai metropolitan area",
+    flag: "🇨🇳",
+    flagCode: "CN",
+    speakers: "14 million native speakers",
+    commonChallenges: [
+      "Wu language family features",
+      "Metropolitan accent influences",
+      "Different tone system",
+      "International exposure effects"
+    ],
+    phoneticFeatures: [
+      "Wu language family characteristics",
+      "Metropolitan pronunciation features",
+      "International language exposure",
+      "Business center influences"
+    ],
+    tonalSystem: {
+      hasTones: true,
+      toneCount: 5,
+      description: "Wu tonal system with metropolitan influences"
+    },
+    examples: {
+      pronunciation: [
+        "Wu language adaptation",
+        "Metropolitan accent features",
+        "International pronunciation exposure"
+      ],
+      grammar: [
+        "Wu to Mandarin to English progression",
+        "Metropolitan language patterns",
+        "International business structures"
+      ],
+      vocabulary: [
+        "Shanghai metropolitan vocabulary",
+        "International business terms",
+        "Financial terminology"
+      ]
+    },
+    learningFocus: [
+      "Wu language neutralization",
+      "International pronunciation standards",
+      "Business communication skills"
+    ]
+  },
   // MYANMAR
   {
     id: "burmese-standard",
@@ -131,6 +327,7 @@ export const lancangMekongProfiles: LanguageDialectProfile[] = [
     nativeName: "မြန်မာစာ (Myanma sa)",
     description: "Official language of Myanmar",
     flag: "🇲🇲",
+    flagCode: "MM",
     speakers: "33 million native speakers",
     commonChallenges: [
       "Tonal language interference",
@@ -172,7 +369,57 @@ export const lancangMekongProfiles: LanguageDialectProfile[] = [
       "Intonation for different sentence types"
     ]
   },
-
+  
+  // THAILAND
+  {
+    id: "thai-central",
+    country: "thailand",
+    name: "Central Thai",
+    nativeName: "ภาษาไทย (Phasa Thai)",
+    description: "Standard Thai based on Central region",
+    flag: "🇹🇭",
+    flagCode: "TH",
+    speakers: "20 million native speakers",
+    commonChallenges: [
+      "Five-tone system interference",
+      "R/L sound confusion",
+      "Final consonant pronunciation",
+      "Consonant cluster difficulties"
+    ],
+    phoneticFeatures: [
+      "Five lexical tones",
+      "Aspirated/unaspirated distinction",
+      "No consonant clusters",
+      "Syllable-timed rhythm"
+    ],
+    tonalSystem: {
+      hasTones: true,
+      toneCount: 5,
+      description: "Five tones (mid, low, falling, high, rising) interfere with English stress"
+    },
+    examples: {
+      pronunciation: [
+        "Distinguishing 'rice' vs 'lice'",
+        "Pronouncing final 't', 'd', 's' sounds",
+        "Managing consonant clusters"
+      ],
+      grammar: [
+        "Using articles and determiners",
+        "Verb tense formation",
+        "Passive voice construction"
+      ],
+      vocabulary: [
+        "Academic vocabulary expansion",
+        "Business terminology",
+        "Technical language"
+      ]
+    },
+    learningFocus: [
+      "R/L distinction training",
+      "Final consonant practice",
+      "Stress pattern development"
+    ]
+  },
   // LAOS
   {
     id: "lao-vientiane",
@@ -181,6 +428,7 @@ export const lancangMekongProfiles: LanguageDialectProfile[] = [
     nativeName: "ພາສາລາວ (Phasa Lao)",
     description: "Standard Lao based on Vientiane dialect",
     flag: "🇱🇦",
+    flagCode: "LA",
     speakers: "3.2 million native speakers",
     commonChallenges: [
       "Six-tone system interference",
@@ -223,104 +471,6 @@ export const lancangMekongProfiles: LanguageDialectProfile[] = [
     ]
   },
 
-  // THAILAND
-  {
-    id: "thai-central",
-    country: "thailand",
-    name: "Central Thai",
-    nativeName: "ภาษาไทย (Phasa Thai)",
-    description: "Standard Thai based on Central region",
-    flag: "🇹🇭",
-    speakers: "20 million native speakers",
-    commonChallenges: [
-      "Five-tone system interference",
-      "R/L sound confusion",
-      "Final consonant pronunciation",
-      "Consonant cluster difficulties"
-    ],
-    phoneticFeatures: [
-      "Five lexical tones",
-      "Aspirated/unaspirated distinction",
-      "No consonant clusters",
-      "Syllable-timed rhythm"
-    ],
-    tonalSystem: {
-      hasTones: true,
-      toneCount: 5,
-      description: "Five tones (mid, low, falling, high, rising) interfere with English stress"
-    },
-    examples: {
-      pronunciation: [
-        "Distinguishing 'rice' vs 'lice'",
-        "Pronouncing final 't', 'd', 's' sounds",
-        "Managing consonant clusters"
-      ],
-      grammar: [
-        "Using articles and determiners",
-        "Verb tense formation",
-        "Passive voice construction"
-      ],
-      vocabulary: [
-        "Academic vocabulary expansion",
-        "Business terminology",
-        "Technical language"
-      ]
-    },
-    learningFocus: [
-      "R/L distinction training",
-      "Final consonant practice",
-      "Stress pattern development"
-    ]
-  },
-  {
-    id: "thai-northern",
-    country: "thailand",
-    name: "Northern Thai (Lanna)",
-    nativeName: "คำเมือง (Kham Mueang)",
-    description: "Northern Thai dialect from Chiang Mai region",
-    flag: "🇹🇭",
-    speakers: "6 million native speakers",
-    commonChallenges: [
-      "Six-tone system complexity",
-      "Vowel system differences from Central Thai",
-      "Code-switching with Central Thai",
-      "Regional accent transfer"
-    ],
-    phoneticFeatures: [
-      "Six lexical tones",
-      "Different vowel inventory",
-      "Unique consonant features",
-      "Influence from Tai languages"
-    ],
-    tonalSystem: {
-      hasTones: true,
-      toneCount: 6,
-      description: "Six tones create more complex interference patterns"
-    },
-    examples: {
-      pronunciation: [
-        "Managing complex tone patterns",
-        "Vowel system adaptation",
-        "Regional accent neutralization"
-      ],
-      grammar: [
-        "Standard Thai vs Northern patterns",
-        "Formal language registers",
-        "Academic language structures"
-      ],
-      vocabulary: [
-        "Standard vs regional vocabulary",
-        "Professional terminology",
-        "Cultural concept translation"
-      ]
-    },
-    learningFocus: [
-      "Tone pattern simplification",
-      "Standard pronunciation training",
-      "Register appropriateness"
-    ]
-  },
-
   // CAMBODIA
   {
     id: "khmer-phnom-penh",
@@ -329,6 +479,7 @@ export const lancangMekongProfiles: LanguageDialectProfile[] = [
     nativeName: "ភាសាខ្មែរ (Phiesa Khmae)",
     description: "Standard Khmer based on Phnom Penh dialect",
     flag: "🇰🇭",
+    flagCode: "KH",
     speakers: "16 million native speakers",
     commonChallenges: [
       "Non-tonal to tonal perception",
@@ -369,7 +520,6 @@ export const lancangMekongProfiles: LanguageDialectProfile[] = [
       "Vowel quality practice"
     ]
   },
-
   // VIETNAM
   {
     id: "vietnamese-northern",
@@ -378,6 +528,7 @@ export const lancangMekongProfiles: LanguageDialectProfile[] = [
     nativeName: "Tiếng Việt Bắc",
     description: "Northern Vietnamese dialect from Hanoi",
     flag: "🇻🇳",
+    flagCode: "VN",
     speakers: "25 million native speakers",
     commonChallenges: [
       "Six-tone system interference",
@@ -426,6 +577,7 @@ export const lancangMekongProfiles: LanguageDialectProfile[] = [
     nativeName: "Tiếng Việt Nam",
     description: "Southern Vietnamese dialect from Ho Chi Minh City",
     flag: "🇻🇳",
+    flagCode: "VN",
     speakers: "30 million native speakers",
     commonChallenges: [
       "Five-tone system (simplified)",
@@ -467,7 +619,6 @@ export const lancangMekongProfiles: LanguageDialectProfile[] = [
       "Accent neutralization"
     ]
   },
-
   // GENERAL
   {
     id: "general",
@@ -476,6 +627,7 @@ export const lancangMekongProfiles: LanguageDialectProfile[] = [
     nativeName: "General",
     description: "Standard English pronunciation and grammar feedback",
     flag: "🌍",
+    flagCode: "WORLD",
     speakers: "Global learners",
     commonChallenges: [
       "General pronunciation improvement",
@@ -532,4 +684,14 @@ export function getLanguagesByCountry(country: CountryType): string[] {
       .filter(profile => profile.country === country)
       .map(profile => profile.name.split(' ')[0]) // Get primary language name
   ));
+}
+
+export function getFlagByCountry(country: CountryType): string {
+  const profile = lancangMekongProfiles.find(p => p.country === country);
+  return profile?.flag || "other";
+}
+
+export function getFlagCodeByDialect(dialectId: LanguageDialectType): string {
+  const profile = getProfileById(dialectId);
+  return profile?.flagCode || "WORLD";
 }

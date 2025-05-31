@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { prisma } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 import { uploadVoiceRecording } from "@/services/storage";
 
 // POST /api/voice-recordings - Create a new recording

@@ -1,5 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
-import { prisma } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 import { VoiceTimeline } from "@/components/voice-journal/timeline";
 import { ProgressTracker } from "@/components/voice-journal/progress-tracker";
 import { redirect } from "next/navigation";
