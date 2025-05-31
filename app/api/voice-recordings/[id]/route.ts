@@ -3,22 +3,24 @@ import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { deleteVoiceRecording } from "@/services/storage";
 
-interface RouteParams {
-  params: {
+interface RouteContext {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 // GET /api/voice-recordings/[id] - Get a single recording
-export async function GET(request: Request, { params }: RouteParams) {
+export async function GET(request: Request, context: RouteContext) {
   try {
     const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { id } = await context.params;
+
     const recording = await prisma.voiceRecording.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: { feedback: true },
     });
 
@@ -45,16 +47,18 @@ export async function GET(request: Request, { params }: RouteParams) {
 }
 
 // DELETE /api/voice-recordings/[id] - Delete a recording
-export async function DELETE(request: Request, { params }: RouteParams) {
+export async function DELETE(request: Request, context: RouteContext) {
   try {
     const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { id } = await context.params;
+
     // Get the recording
     const recording = await prisma.voiceRecording.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!recording) {
@@ -74,7 +78,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
 
     // Delete from database (this will cascade to feedback)
     await prisma.voiceRecording.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({ success: true });
