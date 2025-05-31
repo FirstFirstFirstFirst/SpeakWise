@@ -1,16 +1,72 @@
-import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+// app/api/user/profile/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { currentUser } from "@clerk/nextjs/server";
 import { PrismaClient } from "@prisma/client";
-import { LanguageDialectType, CountryType } from "@/types/user";
 
 const prisma = new PrismaClient();
 
-export async function POST(request: Request) {
+// GET - Retrieve user profile
+export async function GET() {
   try {
-    const { userId } = await auth();
+    const user = await currentUser();
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
 
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // Get user profile
+    const userProfile = await prisma.userProfile.findUnique({
+      where: {
+        userId: user.id,
+      },
+      include: {
+        user: true,
+      },
+    });
+
+    if (!userProfile) {
+      return NextResponse.json(
+        { 
+          userId: user.id,
+          country: null,
+          languageDialect: null,
+          profileCompleted: false,
+        },
+        { status: 200 }
+      );
+    }
+
+    return NextResponse.json({
+      userId: userProfile.userId,
+      country: userProfile.country,
+      languageDialect: userProfile.languageDialect,
+      profileCompleted: !!userProfile.languageDialect,
+      user: userProfile.user,
+    });
+  } catch (error) {
+    console.error("Error fetching user profile:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch profile" },
+      { status: 500 }
+    );
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+// POST - Create or update user profile
+export async function POST(request: NextRequest) {
+  try {
+    const user = await currentUser();
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
     }
 
     const { country, languageDialect } = await request.json();
@@ -22,23 +78,50 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create or update user profile
-    const userProfile = await prisma.userProfile.upsert({
-      where: { userId },
+    // First ensure User record exists
+    await prisma.user.upsert({
+      where: {
+        userId: user.id,
+      },
       update: {
-        country: country as CountryType,
-        languageDialect: languageDialect as LanguageDialectType,
+        email: user.emailAddresses[0]?.emailAddress || "",
+        firstName: user.firstName,
+        lastName: user.lastName,
+        imageUrl: user.imageUrl,
+        updatedAt: new Date(),
       },
       create: {
-        userId,
-        country: country as CountryType,
-        languageDialect: languageDialect as LanguageDialectType,
+        userId: user.id,
+        email: user.emailAddresses[0]?.emailAddress || "",
+        firstName: user.firstName,
+        lastName: user.lastName,
+        imageUrl: user.imageUrl,
+      },
+    });
+
+    // Then create or update UserProfile
+    const userProfile = await prisma.userProfile.upsert({
+      where: {
+        userId: user.id,
+      },
+      update: {
+        country,
+        languageDialect,
+        updatedAt: new Date(),
+      },
+      create: {
+        userId: user.id,
+        country,
+        languageDialect,
+      },
+      include: {
+        user: true,
       },
     });
 
     return NextResponse.json({
       success: true,
-      profileId: userProfile.id,
+      profile: userProfile,
     });
   } catch (error) {
     console.error("Error saving user profile:", error);
@@ -46,42 +129,7 @@ export async function POST(request: Request) {
       { error: "Failed to save profile" },
       { status: 500 }
     );
-  }
-}
-
-export async function GET() {
-  try {
-    const { userId } = await auth();
-
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Get user's profile
-    const userProfile = await prisma.userProfile.findUnique({
-      where: { userId },
-      select: {
-        country: true,
-        languageDialect: true,
-      },
-    });
-
-    if (!userProfile || !userProfile.languageDialect) {
-      return NextResponse.json({
-        profileCompleted: false,
-      });
-    }
-
-    return NextResponse.json({
-      profileCompleted: true,
-      country: userProfile.country,
-      languageDialect: userProfile.languageDialect,
-    });
-  } catch (error) {
-    console.error("Error fetching user profile:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch profile" },
-      { status: 500 }
-    );
+  } finally {
+    await prisma.$disconnect();
   }
 }
