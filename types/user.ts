@@ -208,3 +208,52 @@ export interface ProgressMetrics {
     trend: "improving" | "stable" | "declining";
   };
 }
+
+export interface VoiceRecording {
+  id: string;
+  userId: string;
+  blobUrl: string;
+  blobPathname: string;
+  transcript: string | null;
+  duration: number;
+  languageDialect: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  feedback: VoiceRecordingFeedback | null;
+}
+
+export interface VoiceRecordingFeedback {
+  id: string;
+  recordingId: string;
+  pronunciation: string;
+  grammar: string;
+  fluency: string;
+  vocabulary: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ChartDataPoint {
+  session: number;
+  pronunciation: number;
+  grammar: number;
+  fluency: number;
+  vocabulary: number;
+  date: string;
+}
+
+export interface AverageScores {
+  pronunciation: number;
+  grammar: number;
+  fluency: number;
+  vocabulary: number;
+}
+
+export interface DashboardResponse {
+  totalSessions: number;
+  totalPracticeTime: number;
+  averageScores: AverageScores;
+  improvementRate: string;
+  chartData: ChartDataPoint[];
+  hasData: boolean;
+}
