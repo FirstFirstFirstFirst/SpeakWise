@@ -2,8 +2,16 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { LanguageDialectType } from "@/types/user";
-import { generateAnalysisPrompt, getDialectPrompt, DialectPromptConfig } from "@/utils/lm-dialect-prompts";
-import { getProfileById, LanguageDialectProfile } from "@/utils/lm-language-dialect-profiles";
+import {
+  generateAnalysisPrompt,
+  getDialectPrompt,
+  DialectPromptConfig,
+} from "@/utils/lm-dialect-prompts";
+import {
+  getProfileById,
+  LanguageDialectProfile,
+} from "@/utils/lm-language-dialect-profiles";
+import { prisma } from "@/lib/prisma";
 
 // Initialize the Google Generative AI with your API key
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
@@ -18,31 +26,109 @@ interface FeedbackResponse {
 }
 
 export async function POST(request: Request) {
-  try {
-    const { transcript, userId, userEmail, languageDialect } = await request.json();
+  const startTime = Date.now();
+  console.log(
+    `[SPEECH_ANALYSIS] Request started at ${new Date().toISOString()}`
+  );
 
+  try {
+    const { transcript, userId, userEmail, languageDialect } =
+      await request.json();
+
+    console.log(`[SPEECH_ANALYSIS] Request payload:`, {
+      transcriptLength: transcript?.length || 0,
+      userId,
+      userEmail,
+      languageDialect,
+      transcriptPreview:
+        transcript?.substring(0, 100) + (transcript?.length > 100 ? "..." : ""),
+    });
+
+    // Input validation
     if (
       !transcript ||
       typeof transcript !== "string" ||
       transcript.trim().length === 0
     ) {
+      console.warn(`[SPEECH_ANALYSIS] Invalid transcript provided`, {
+        userId,
+        transcriptType: typeof transcript,
+        transcriptLength: transcript?.length || 0,
+      });
       return NextResponse.json(
         { error: "Valid transcript is required" },
         { status: 400 }
       );
     }
 
-    // Use provided language/dialect or default to general
-    const selectedDialect: LanguageDialectType = languageDialect || 'general';
-    
+    if (!userId) {
+      console.warn(`[SPEECH_ANALYSIS] Missing userId`, { userEmail });
+      return NextResponse.json(
+        { error: "User ID is required" },
+        { status: 400 }
+      );
+    }
+
+    // Determine the language dialect to use for analysis
+    let selectedDialect: LanguageDialectType = "general";
+
+    console.log(`[SPEECH_ANALYSIS] Determining dialect for user ${userId}`);
+
+    // First, try to use the provided language dialect
+    if (languageDialect && languageDialect !== "general") {
+      selectedDialect = languageDialect;
+      console.log(
+        `[SPEECH_ANALYSIS] Using provided dialect: ${selectedDialect}`
+      );
+    } else {
+      // If not provided or is 'general', fetch from user profile
+      console.log(`[SPEECH_ANALYSIS] Fetching dialect from user profile`);
+      try {
+        const userProfile = await prisma.userProfile.findUnique({
+          where: { userId },
+          select: { languageDialect: true },
+        });
+
+        if (userProfile?.languageDialect) {
+          selectedDialect = userProfile.languageDialect as LanguageDialectType;
+          console.log(
+            `[SPEECH_ANALYSIS] Found dialect in profile: ${selectedDialect}`
+          );
+        } else {
+          console.log(
+            `[SPEECH_ANALYSIS] No dialect found in profile, using general`
+          );
+        }
+      } catch (dbError) {
+        console.error(
+          `[SPEECH_ANALYSIS] Database error fetching user profile:`,
+          {
+            userId,
+            error: dbError,
+          }
+        );
+        // Will use 'general' as fallback
+      }
+    }
+
     // Generate language/dialect-specific prompt
+    console.log(
+      `[SPEECH_ANALYSIS] Generating analysis prompt for dialect: ${selectedDialect}`
+    );
     const prompt = generateAnalysisPrompt(transcript, selectedDialect);
-    
+
     // Get dialect-specific configuration for additional processing
     const dialectConfig = getDialectPrompt(selectedDialect);
     const profile = getProfileById(selectedDialect);
 
-    console.log(`Analyzing speech for user ${userId} (${userEmail}) with ${profile?.name || 'General'} profile`);
+    console.log(`[SPEECH_ANALYSIS] Analysis configuration:`, {
+      userId,
+      userEmail,
+      selectedDialect,
+      profileName: profile?.name || "General",
+      promptLength: prompt.length,
+      dialectConfigKeys: Object.keys(dialectConfig),
+    });
 
     // Get the generative model (using a more capable model if needed)
     const model = genAI.getGenerativeModel({
@@ -55,13 +141,30 @@ export async function POST(request: Request) {
       },
     });
 
+    console.log(`[SPEECH_ANALYSIS] Sending request to Gemini API`, {
+      userId,
+      model: "gemini-1.5-flash",
+      promptLength: prompt.length,
+    });
+
     // Generate content with safety settings
+    const geminiStartTime = Date.now();
     const result = await model.generateContent(prompt);
+    const geminiEndTime = Date.now();
     const response = result.response.text();
+
+    console.log(`[SPEECH_ANALYSIS] Gemini API response received`, {
+      userId,
+      responseLength: response.length,
+      geminiLatency: geminiEndTime - geminiStartTime,
+      responsePreview:
+        response.substring(0, 200) + (response.length > 200 ? "..." : ""),
+    });
 
     let feedbackObject: FeedbackResponse;
 
     try {
+      console.log(`[SPEECH_ANALYSIS] Parsing Gemini response as JSON`);
       // Try to parse the response as JSON
       feedbackObject = JSON.parse(response);
 
@@ -77,78 +180,177 @@ export async function POST(request: Request) {
       );
 
       if (missingFields.length > 0) {
-        console.warn(
-          `Missing fields in Gemini response: ${missingFields.join(", ")}`
-        );
+        console.warn(`[SPEECH_ANALYSIS] Missing fields in Gemini response:`, {
+          userId,
+          missingFields,
+          presentFields: Object.keys(feedbackObject),
+        });
         // Handle missing fields by providing default messages
         missingFields.forEach((field) => {
-          if (field !== 'languageDialectSpecificFeedback') {
+          if (field !== "languageDialectSpecificFeedback") {
             feedbackObject[
-              field as keyof Omit<FeedbackResponse, 'languageDialectSpecificFeedback'>
+              field as keyof Omit<
+                FeedbackResponse,
+                "languageDialectSpecificFeedback"
+              >
             ] = `No specific ${field} feedback available. Please try again with a longer speech sample.`;
           }
         });
-      }
-
-      // Add language/dialect-specific feedback
-      if (selectedDialect !== 'general' && profile) {
-        feedbackObject.languageDialectSpecificFeedback = generateDialectSpecificTips(
-          selectedDialect,
-          dialectConfig,
-          profile
+      } else {
+        console.log(
+          `[SPEECH_ANALYSIS] All required fields present in response`,
+          {
+            userId,
+            fields: Object.keys(feedbackObject),
+          }
         );
       }
+
+      // Add language/dialect-specific feedback if not 'general'
+      if (selectedDialect !== "general" && profile) {
+        console.log(
+          `[SPEECH_ANALYSIS] Generating dialect-specific tips for ${profile.name}`
+        );
+        feedbackObject.languageDialectSpecificFeedback =
+          generateDialectSpecificTips(selectedDialect, dialectConfig, profile);
+      }
     } catch (parseError) {
-      console.error("Failed to parse Gemini response as JSON:", parseError);
-      console.log("Raw response:", response);
+      console.error(
+        `[SPEECH_ANALYSIS] Failed to parse Gemini response as JSON:`,
+        {
+          userId,
+          error: parseError,
+          rawResponse: response,
+          responseLength: response.length,
+        }
+      );
 
       // Extract potential JSON from the response if possible
       const jsonMatch = response.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
+        console.log(
+          `[SPEECH_ANALYSIS] Attempting to extract JSON from response`,
+          {
+            userId,
+            extractedLength: jsonMatch[0].length,
+          }
+        );
         try {
           feedbackObject = JSON.parse(jsonMatch[0]);
+          console.log(`[SPEECH_ANALYSIS] Successfully parsed extracted JSON`, {
+            userId,
+          });
         } catch (e: unknown) {
-          console.log("Unknown error", e);
+          console.error(`[SPEECH_ANALYSIS] Failed to parse extracted JSON:`, {
+            userId,
+            error: e,
+          });
           // If that fails too, use fallback
-          feedbackObject = getFallbackFeedback();
+          feedbackObject = getFallbackFeedback(selectedDialect, profile);
         }
       } else {
+        console.warn(
+          `[SPEECH_ANALYSIS] No JSON found in response, using fallback`,
+          { userId }
+        );
         // Use fallback feedback
-        feedbackObject = getFallbackFeedback();
+        feedbackObject = getFallbackFeedback(selectedDialect, profile);
       }
     }
+
+    console.log(`[SPEECH_ANALYSIS] Validating feedback object`, {
+      userId,
+      feedbackKeys: Object.keys(feedbackObject),
+    });
 
     // Ensure all feedback entries are strings and have reasonable content
     const validatedFeedback: FeedbackResponse = {
       pronunciation: ensureValidFeedback(
         feedbackObject.pronunciation,
-        "pronunciation"
+        "pronunciation",
+        profile
       ),
-      grammar: ensureValidFeedback(feedbackObject.grammar, "grammar"),
-      fluency: ensureValidFeedback(feedbackObject.fluency, "fluency"),
-      vocabulary: ensureValidFeedback(feedbackObject.vocabulary, "vocabulary"),
-      languageDialectSpecificFeedback: feedbackObject.languageDialectSpecificFeedback,
+      grammar: ensureValidFeedback(feedbackObject.grammar, "grammar", profile),
+      fluency: ensureValidFeedback(feedbackObject.fluency, "fluency", profile),
+      vocabulary: ensureValidFeedback(
+        feedbackObject.vocabulary,
+        "vocabulary",
+        profile
+      ),
+      languageDialectSpecificFeedback:
+        feedbackObject.languageDialectSpecificFeedback,
     };
 
-    // Log analysis for monitoring (remove in production)
-    console.log(`Speech analysis completed for ${profile?.name || 'General'} speaker`);
+    const endTime = Date.now();
+    const totalLatency = endTime - startTime;
+
+    // Log analysis for monitoring
+    console.log(`[SPEECH_ANALYSIS] Analysis completed successfully`, {
+      userId,
+      userEmail,
+      profileName: profile?.name || "General",
+      selectedDialect,
+      totalLatency,
+      transcriptLength: transcript.length,
+      hasDialectSpecificFeedback:
+        !!validatedFeedback.languageDialectSpecificFeedback,
+      feedbackLengths: {
+        pronunciation: validatedFeedback.pronunciation.length,
+        grammar: validatedFeedback.grammar.length,
+        fluency: validatedFeedback.fluency.length,
+        vocabulary: validatedFeedback.vocabulary.length,
+      },
+    });
 
     return NextResponse.json(validatedFeedback);
   } catch (error) {
-    console.error("Error analyzing speech:", error);
-    return NextResponse.json(getFallbackFeedback(), { status: 500 });
+    const endTime = Date.now();
+    const totalLatency = endTime - startTime;
+
+    console.error(`[SPEECH_ANALYSIS] Unexpected error:`, {
+      error:
+        error instanceof Error
+          ? {
+              name: error.name,
+              message: error.message,
+              stack: error.stack,
+            }
+          : error,
+      totalLatency,
+      timestamp: new Date().toISOString(),
+    });
+
+    return NextResponse.json(getFallbackFeedback("general"), { status: 500 });
   }
 }
 
-// Ensure feedback is a valid string with reasonable content
-function ensureValidFeedback(feedback: unknown, type: string): string {
+// Ensure feedback is a valid string with reasonable content and add dialect-specific context
+function ensureValidFeedback(
+  feedback: unknown,
+  type: string,
+  profile?: LanguageDialectProfile
+): string {
+  console.log(`[SPEECH_ANALYSIS] Validating ${type} feedback`, {
+    feedbackType: typeof feedback,
+    feedbackLength: typeof feedback === "string" ? feedback.length : 0,
+    profileName: profile?.name,
+  });
+
   if (
     typeof feedback !== "string" ||
     feedback.trim().length < 10 ||
     feedback === "undefined" ||
     feedback === "null"
   ) {
-    return `We couldn't generate specific ${type} feedback. Please try again with a clearer or longer speech sample.`;
+    console.warn(`[SPEECH_ANALYSIS] Invalid ${type} feedback, using fallback`, {
+      feedbackType: typeof feedback,
+      feedbackValue: feedback,
+      profileName: profile?.name,
+    });
+
+    // Generate dialect-specific fallback feedback
+    const dialectInfo = profile ? ` for ${profile.name} speakers` : "";
+    return `We couldn't generate specific ${type} feedback${dialectInfo}. Please try again with a clearer or longer speech sample.`;
   }
   return feedback;
 }
@@ -159,42 +361,76 @@ function generateDialectSpecificTips(
   dialectConfig: DialectPromptConfig,
   profile: LanguageDialectProfile
 ): string[] {
+  console.log(`[SPEECH_ANALYSIS] Generating dialect-specific tips`, {
+    languageDialect,
+    profileName: profile.name,
+    hasTones: profile.tonalSystem?.hasTones,
+    pronunciationFocusCount: dialectConfig.pronunciationFocus.length,
+  });
+
   const tips: string[] = [];
-  
+
   // Add tonal system tips if applicable
   if (profile.tonalSystem?.hasTones) {
-    tips.push(
-      `Remember that English uses stress patterns, not tones like ${profile.name}. Focus on emphasizing important words rather than using tonal variations.`
-    );
+    const tonalTip = `Remember that English uses stress patterns, not tones like ${profile.name}. Focus on emphasizing important words rather than using tonal variations.`;
+    tips.push(tonalTip);
+    console.log(`[SPEECH_ANALYSIS] Added tonal system tip for ${profile.name}`);
   }
-  
+
   // Add specific pronunciation tips
   if (dialectConfig.pronunciationFocus.length > 0) {
-    tips.push(
-      `Key pronunciation focus for ${profile.name} speakers: ${dialectConfig.pronunciationFocus.slice(0, 2).join(' and ')}.`
+    const pronunciationTip = `Key pronunciation focus for ${
+      profile.name
+    } speakers: ${dialectConfig.pronunciationFocus.slice(0, 2).join(" and ")}.`;
+    tips.push(pronunciationTip);
+    console.log(
+      `[SPEECH_ANALYSIS] Added pronunciation tip for ${profile.name}`,
+      {
+        focusAreas: dialectConfig.pronunciationFocus.slice(0, 2),
+      }
     );
   }
-  
+
   // Add cultural context tip
   if (dialectConfig.culturalContext) {
-    tips.push(
-      `Cultural insight: ${dialectConfig.culturalContext.split('.')[0]}.`
+    const culturalTip = `Cultural insight: ${
+      dialectConfig.culturalContext.split(".")[0]
+    }.`;
+    tips.push(culturalTip);
+    console.log(
+      `[SPEECH_ANALYSIS] Added cultural context tip for ${profile.name}`
     );
   }
-  
+
+  console.log(
+    `[SPEECH_ANALYSIS] Generated ${tips.length} dialect-specific tips for ${profile.name}`
+  );
   return tips;
 }
 
-// Fallback feedback to use when API fails
-function getFallbackFeedback(): FeedbackResponse {
+// Fallback feedback to use when API fails - now with dialect awareness
+function getFallbackFeedback(
+  languageDialect: LanguageDialectType = "general",
+  profile?: LanguageDialectProfile
+): FeedbackResponse {
+  console.log(`[SPEECH_ANALYSIS] Using fallback feedback`, {
+    languageDialect,
+    profileName: profile?.name,
+  });
+
+  const dialectInfo = profile ? ` for ${profile.name} speakers` : "";
+
   return {
-    pronunciation:
-      "We couldn't analyze your pronunciation in detail. Try speaking clearly and at a moderate pace for better analysis.",
-    grammar:
-      "We couldn't analyze your grammatical structure in detail. Try providing a longer speech sample for more specific feedback.",
-    fluency:
-      "We couldn't evaluate your speech fluency in detail. Consider recording a longer sample with natural conversation.",
-    vocabulary:
-      "We couldn't assess your vocabulary usage in detail. Try speaking on a topic that allows you to demonstrate a range of vocabulary.",
+    pronunciation: `We couldn't analyze your pronunciation in detail${dialectInfo}. Try speaking clearly and at a moderate pace for better analysis.`,
+    grammar: `We couldn't analyze your grammatical structure in detail${dialectInfo}. Try providing a longer speech sample for more specific feedback.`,
+    fluency: `We couldn't evaluate your speech fluency in detail${dialectInfo}. Consider recording a longer sample with natural conversation.`,
+    vocabulary: `We couldn't assess your vocabulary usage in detail${dialectInfo}. Try speaking on a topic that allows you to demonstrate a range of vocabulary.`,
+    languageDialectSpecificFeedback:
+      languageDialect !== "general" && profile
+        ? [
+            `Personalized feedback for ${profile.name} speakers will be available with a longer speech sample.`,
+            `Focus on areas where ${profile.name} speakers commonly need improvement: pronunciation clarity and grammar structure.`,
+          ]
+        : undefined,
   };
 }

@@ -38,6 +38,16 @@ export default function AnalysisPage() {
     const savedTranscript = localStorage.getItem("speechTranscript") || "";
     const savedDuration = localStorage.getItem("speechDuration") || "0";
     const savedUserId = localStorage.getItem("userId") || "";
+    const savedLanguageDialect =
+      localStorage.getItem("languageDialect") || "general"; // 🔥 FIX: Get languageDialect
+
+    console.log("Retrieved from localStorage:", {
+      transcriptLength: savedTranscript.length,
+      duration: savedDuration,
+      userId: savedUserId,
+      currentUserId: user.id,
+      languageDialect: savedLanguageDialect,
+    });
 
     // Verify the analysis belongs to the current user
     if (savedUserId && savedUserId !== user.id) {
@@ -46,13 +56,18 @@ export default function AnalysisPage() {
       return;
     }
 
+    // 🔥 FIX: Better validation for transcript
+    if (!savedTranscript || savedTranscript.trim().length === 0) {
+      toast.error("No transcript found - please record your speech first");
+      router.push("/");
+      return;
+    }
+
     setTranscript(savedTranscript);
     setDuration(parseInt(savedDuration, 10));
 
     // Analyze transcript using Gemini API
-    if (savedTranscript) {
-      analyzeSpeech(savedTranscript);
-    }
+    analyzeSpeech(savedTranscript, savedLanguageDialect); // 🔥 FIX: Pass languageDialect
   }, [user, router]);
 
   // Download transcript as PDF
@@ -131,8 +146,17 @@ export default function AnalysisPage() {
     doc.save("speech-feedback.pdf");
   };
 
-  const analyzeSpeech = async (speechTranscript: string) => {
+  const analyzeSpeech = async (
+    speechTranscript: string,
+    languageDialect: string = "general"
+  ) => {
     setIsLoading(true);
+    console.log("Starting speech analysis with:", {
+      transcriptLength: speechTranscript.length,
+      userId: user?.id,
+      languageDialect,
+    });
+
     try {
       const response = await fetch("/api/analyze-speech", {
         method: "POST",
@@ -143,35 +167,63 @@ export default function AnalysisPage() {
           transcript: speechTranscript,
           userId: user?.id,
           userEmail: user?.emailAddresses[0]?.emailAddress,
+          languageDialect: languageDialect, // 🔥 FIX: Include languageDialect
         }),
       });
 
+      console.log("Analysis API response status:", response.status);
+
       if (!response.ok) {
-        throw new Error("Failed to analyze speech");
+        const errorText = await response.text();
+        console.error("Analysis API error:", errorText);
+        throw new Error(`Analysis failed: ${response.status} - ${errorText}`);
       }
 
       const feedbackData = await response.json();
+      console.log("Received feedback:", {
+        pronunciation: feedbackData.pronunciation?.substring(0, 50) + "...",
+        grammar: feedbackData.grammar?.substring(0, 50) + "...",
+        fluency: feedbackData.fluency?.substring(0, 50) + "...",
+        vocabulary: feedbackData.vocabulary?.substring(0, 50) + "...",
+        hasDialectSpecific: !!feedbackData.languageDialectSpecificFeedback,
+      });
+
       setFeedback(feedbackData);
 
       const generatedSuggestions = generateImprovementSuggestions(feedbackData);
-
       setSuggestions(generatedSuggestions);
+
+      toast.success("Analysis completed successfully!");
     } catch (error) {
       console.error("Error analyzing speech:", error);
-      toast?.error("Failed to analyze speech. Please try again.");
-      // Set fallback feedback
+      toast.error(
+        `Failed to analyze speech: ${
+          error instanceof Error ? error.message : "Please try again."
+        }`
+      );
+
+      // Set fallback feedback with more helpful message
       setFeedback({
-        pronunciation: "Analysis unavailable. Please try again.",
-        grammar: "Analysis unavailable. Please try again.",
-        fluency: "Analysis unavailable. Please try again.",
-        vocabulary: "Analysis unavailable. Please try again.",
+        pronunciation:
+          "Analysis unavailable. Please ensure you have a stable internet connection and try recording again with clear speech for at least 30 seconds.",
+        grammar:
+          "Analysis unavailable. Please ensure you have a stable internet connection and try recording again with clear speech for at least 30 seconds.",
+        fluency:
+          "Analysis unavailable. Please ensure you have a stable internet connection and try recording again with clear speech for at least 30 seconds.",
+        vocabulary:
+          "Analysis unavailable. Please ensure you have a stable internet connection and try recording again with clear speech for at least 30 seconds.",
       });
 
       setSuggestions([
         {
           title: "Record Longer Samples",
           description:
-            "Provide at least 30 seconds of speech for better analysis",
+            "Provide at least 30 seconds of clear speech for better analysis",
+        },
+        {
+          title: "Check Internet Connection",
+          description:
+            "Ensure you have a stable internet connection for analysis",
         },
         {
           title: "Speak Clearly",
@@ -179,9 +231,8 @@ export default function AnalysisPage() {
             "Try to speak at a moderate pace with clear articulation",
         },
         {
-          title: "Varied Content",
-          description:
-            "Discuss different topics to show range of vocabulary and grammar",
+          title: "Try Again",
+          description: "Return to the recording page and try recording again",
         },
       ]);
     } finally {
