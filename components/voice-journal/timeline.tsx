@@ -1,7 +1,7 @@
 "use client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDistanceToNow } from "date-fns";
-import { Play, Pause } from "lucide-react";
+import { Play, Pause, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useRef, useEffect } from "react";
 
@@ -27,6 +27,7 @@ interface VoiceTimelineProps {
 export function VoiceTimeline({ recordings }: VoiceTimelineProps) {
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState<{ [key: string]: number }>({});
+  const [loadingId, setLoadingId] = useState<string | null>(null);
   const audioRefs = useRef<{ [key: string]: HTMLAudioElement }>({});
 
   // Initialize audio elements for each recording
@@ -73,13 +74,19 @@ export function VoiceTimeline({ recordings }: VoiceTimelineProps) {
   }, [recordings]);
 
   const togglePlay = async (recordingId: string) => {
+    setLoadingId(recordingId);
+
     const audio = audioRefs.current[recordingId];
-    if (!audio) return;
+    if (!audio) {
+      setLoadingId(null);
+      return;
+    }
 
     if (playingId === recordingId) {
       // Pause current recording
       audio.pause();
       setPlayingId(null);
+      setLoadingId(null);
     } else {
       // Stop any currently playing audio
       if (playingId) {
@@ -92,11 +99,22 @@ export function VoiceTimeline({ recordings }: VoiceTimelineProps) {
 
       // Play new recording
       try {
+        // Make sure audio is loaded
+        if (audio.readyState < 3) {
+          await new Promise((resolve, reject) => {
+            audio.addEventListener("canplay", resolve, { once: true });
+            audio.addEventListener("error", reject, { once: true });
+            audio.load();
+          });
+        }
+
         await audio.play();
         setPlayingId(recordingId);
       } catch (error) {
         console.error("Error playing audio:", error);
         setPlayingId(null);
+      } finally {
+        setLoadingId(null);
       }
     }
   };
@@ -130,9 +148,14 @@ export function VoiceTimeline({ recordings }: VoiceTimelineProps) {
                       variant="outline"
                       size="icon"
                       onClick={() => togglePlay(recording.id)}
-                      disabled={!audioRefs.current[recording.id]}
+                      disabled={
+                        !audioRefs.current[recording.id] ||
+                        loadingId === recording.id
+                      }
                     >
-                      {playingId === recording.id ? (
+                      {loadingId === recording.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : playingId === recording.id ? (
                         <Pause className="h-4 w-4" />
                       ) : (
                         <Play className="h-4 w-4" />
