@@ -172,11 +172,15 @@ export default function RecordPage() {
 
       // Create FormData to upload the file
       const formData = new FormData();
-      formData.append("file", audioFile);
-      formData.append("userId", user.id); // Associate with user
+      formData.append("audio", audioFile);
+      formData.append("duration", recordingTime.toString());
+      formData.append(
+        "languageDialect",
+        (user.publicMetadata.languageDialect as string) || "general"
+      );
 
-      // Upload the file to get a temporary URL
-      const uploadResponse = await fetch("/api/upload-audio", {
+      // Upload the file using voice-recordings endpoint
+      const uploadResponse = await fetch("/api/voice-recordings", {
         method: "POST",
         body: formData,
       });
@@ -185,7 +189,7 @@ export default function RecordPage() {
         throw new Error("Failed to upload audio file");
       }
 
-      const { audioUrl } = await uploadResponse.json();
+      const recording = await uploadResponse.json();
 
       // Send the URL to AssemblyAI for transcription
       const transcriptResponse = await fetch("/api/transcribe", {
@@ -194,9 +198,10 @@ export default function RecordPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          audioUrl,
+          audioUrl: recording.blobUrl,
+          recordingId: recording.id,
           userId: user.id,
-          userEmail: user.emailAddresses[0]?.emailAddress
+          userEmail: user.emailAddresses[0]?.emailAddress,
         }),
       });
 
@@ -227,10 +232,17 @@ export default function RecordPage() {
     <div className="container mx-auto px-4 py-6 sm:py-10 space-y-6 sm:space-y-8 max-w-4xl">
       <div className="text-center space-y-2">
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight">
-          {user ? `Welcome back, ${user.firstName || user.emailAddresses[0]?.emailAddress.split('@')[0]}!` : 'Unlock Your English Speaking Potential!'}
+          {user
+            ? `Welcome back, ${
+                user.firstName ||
+                user.emailAddresses[0]?.emailAddress.split("@")[0]
+              }!`
+            : "Unlock Your English Speaking Potential!"}
         </h1>
         <p className="text-sm sm:text-base text-muted-foreground">
-          {user ? 'Continue your English learning journey with personalized feedback' : 'Record your voice and get instant feedback to improve your English'}
+          {user
+            ? "Continue your English learning journey with personalized feedback"
+            : "Record your voice and get instant feedback to improve your English"}
         </p>
       </div>
       {/* Practice Text Card - Added component */}

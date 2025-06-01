@@ -8,8 +8,11 @@ import { LanguageDialectType, CountryType } from "@/types/user";
 import {
   getProfilesByCountry,
   getAllCountries,
-  getProfileById
+  getProfileById,
 } from "@/utils/lm-language-dialect-profiles";
+
+// Import flag-icons CSS
+import "flag-icons/css/flag-icons.min.css";
 
 interface LanguageDialectSelectorProps {
   selectedCountry?: CountryType;
@@ -19,35 +22,84 @@ interface LanguageDialectSelectorProps {
   showTitle?: boolean;
 }
 
-export function LanguageDialectSelector({ 
+export function LanguageDialectSelector({
   selectedCountry,
-  selectedLanguageDialect, 
+  selectedLanguageDialect,
   onCountrySelect,
-  onLanguageDialectSelect, 
-  showTitle = true 
+  onLanguageDialectSelect,
+  showTitle = true,
 }: LanguageDialectSelectorProps) {
-  const [expandedCountry, setExpandedCountry] = useState<CountryType | null>(selectedCountry || null);
-  const [expandedProfile, setExpandedProfile] = useState<LanguageDialectType | null>(null);
+  const [expandedCountry, setExpandedCountry] = useState<CountryType | null>(
+    selectedCountry || null
+  );
+  const [expandedProfile, setExpandedProfile] =
+    useState<LanguageDialectType | null>(null);
 
   const countries = getAllCountries();
   const countryNames: Record<CountryType, string> = {
     china: "China",
     myanmar: "Myanmar",
-    laos: "Laos", 
+    laos: "Laos",
     thailand: "Thailand",
     cambodia: "Cambodia",
     vietnam: "Vietnam",
-    other: "Other"
+    other: "Other",
   };
 
+  const profileFlagCodes: Record<LanguageDialectType, string | null> = {
+    // China
+    "mandarin-standard": "cn",
+    "mandarin-beijing": "cn",
+    "mandarin-northeastern": "cn",
+    "cantonese-hongkong": "hk",
+    "cantonese-guangzhou": "cn",
+    "wu-shanghai": "cn",
+    "min-fujian": "cn",
+    "hakka-taiwan": "tw",
+
+    // Myanmar
+    "burmese-standard": "mm",
+    "burmese-yangon": "mm",
+    "burmese-mandalay": "mm",
+    "shan-northern": "mm",
+    "karen-sgaw": "mm",
+
+    // Laos
+    "lao-vientiane": "la",
+    "lao-luang-prabang": "la",
+    "lao-southern": "la",
+    "hmong-white": "la",
+    "khmu-northern": "la",
+
+    // Thailand
+    "thai-central": "th",
+    "thai-northern": "th",
+    "thai-northeastern": "th",
+    "thai-southern": "th",
+
+    // Cambodia
+    "khmer-phnom-penh": "kh",
+    "khmer-battambang": "kh",
+    "khmer-siem-reap": "kh",
+
+    // Vietnam
+    "vietnamese-northern": "vn",
+    "vietnamese-central": "vn",
+    "vietnamese-southern": "vn",
+
+    // General
+    general: null,
+  };
+
+  // Map countries to their ISO codes for flag-icons
   const countryFlags: Record<CountryType, string> = {
-    china: "🇨🇳",
-    myanmar: "🇲🇲", 
-    laos: "🇱🇦",
-    thailand: "🇹🇭",
-    cambodia: "🇰🇭",
-    vietnam: "🇻🇳",
-    other: "🌍"
+    china: "cn",
+    myanmar: "mm",
+    laos: "la",
+    thailand: "th",
+    cambodia: "kh",
+    vietnam: "vn",
+    other: "", // No flag for "other"
   };
 
   const handleCountryClick = (country: CountryType) => {
@@ -73,7 +125,9 @@ export function LanguageDialectSelector({
     setExpandedProfile(null);
   };
 
-  const selectedProfile = selectedLanguageDialect ? getProfileById(selectedLanguageDialect) : null;
+  const selectedProfile = selectedLanguageDialect
+    ? getProfileById(selectedLanguageDialect)
+    : null;
 
   return (
     <div className="space-y-6">
@@ -81,10 +135,13 @@ export function LanguageDialectSelector({
         <div className="text-center space-y-2">
           <div className="flex items-center justify-center space-x-2">
             <Globe className="h-5 w-5 text-primary" />
-            <h2 className="text-xl font-semibold">Choose Your Language Background</h2>
+            <h2 className="text-xl font-semibold">
+              Choose Your Language Background
+            </h2>
           </div>
           <p className="text-sm text-muted-foreground">
-            Select your country and native language/dialect for personalized English learning feedback
+            Select your country and native language/dialect for personalized
+            English learning feedback
           </p>
         </div>
       )}
@@ -94,19 +151,25 @@ export function LanguageDialectSelector({
         <h3 className="text-lg font-medium">1. Select Your Country</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {countries.map((country) => (
-            <Card 
+            <Card
               key={country}
               className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
-                selectedCountry === country 
-                  ? 'ring-2 ring-primary border-primary' 
-                  : 'border-border'
+                selectedCountry === country
+                  ? "ring-2 ring-primary border-primary"
+                  : "border-border"
               }`}
               onClick={() => handleCountryClick(country)}
             >
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <span className="text-2xl">{countryFlags[country]}</span>
+                    {country === "other" ? (
+                      <Globe className="h-6 w-6 text-muted-foreground" />
+                    ) : (
+                      <span
+                        className={`fi fi-${countryFlags[country]} text-xl`}
+                      ></span>
+                    )}
                     <span className="font-medium">{countryNames[country]}</span>
                   </div>
                   {selectedCountry === country && (
@@ -130,19 +193,28 @@ export function LanguageDialectSelector({
           </h3>
           <div className="space-y-3">
             {getProfilesByCountry(expandedCountry).map((profile) => (
-              <Card 
+              <Card
                 key={profile.id}
                 className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
-                  selectedLanguageDialect === profile.id 
-                    ? 'ring-2 ring-primary border-primary' 
-                    : 'border-border'
+                  selectedLanguageDialect === profile.id
+                    ? "ring-2 ring-primary border-primary"
+                    : "border-border"
                 }`}
                 onClick={() => handleProfileClick(profile.id)}
               >
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center justify-between text-base">
                     <div className="flex items-center space-x-3">
-                      <span className="text-xl">{profile.flag}</span>
+                      {/* Updated flag rendering - check if profile.flag is ISO code or emoji */}
+                      {profileFlagCodes[profile.id] ? (
+                        <span
+                          className={`fi fi-${
+                            profileFlagCodes[profile.id]
+                          } text-xl`}
+                        ></span>
+                      ) : (
+                        <span className="text-xl">{profile.flag}</span>
+                      )}
                       <div>
                         <div className="font-medium">{profile.name}</div>
                         <div className="text-sm text-muted-foreground font-normal">
@@ -183,23 +255,35 @@ export function LanguageDialectSelector({
 
                       {/* Common Challenges */}
                       <div>
-                        <h4 className="text-sm font-medium mb-2">Common English Learning Challenges:</h4>
+                        <h4 className="text-sm font-medium mb-2">
+                          Common English Learning Challenges:
+                        </h4>
                         <ul className="text-xs text-muted-foreground space-y-1">
-                          {profile.commonChallenges.slice(0, 4).map((challenge, index) => (
-                            <li key={index} className="flex items-start space-x-2">
-                              <span className="text-primary mt-1">•</span>
-                              <span>{challenge}</span>
-                            </li>
-                          ))}
+                          {profile.commonChallenges
+                            .slice(0, 4)
+                            .map((challenge, index) => (
+                              <li
+                                key={index}
+                                className="flex items-start space-x-2"
+                              >
+                                <span className="text-primary mt-1">•</span>
+                                <span>{challenge}</span>
+                              </li>
+                            ))}
                         </ul>
                       </div>
 
                       {/* Learning Focus */}
                       <div>
-                        <h4 className="text-sm font-medium mb-2">Our Focus Areas for You:</h4>
+                        <h4 className="text-sm font-medium mb-2">
+                          Our Focus Areas for You:
+                        </h4>
                         <ul className="text-xs text-muted-foreground space-y-1">
                           {profile.learningFocus.map((focus, index) => (
-                            <li key={index} className="flex items-start space-x-2">
+                            <li
+                              key={index}
+                              className="flex items-start space-x-2"
+                            >
                               <span className="text-green-600 mt-1">✓</span>
                               <span>{focus}</span>
                             </li>
@@ -252,7 +336,8 @@ export function LanguageDialectSelector({
             </div>
           </div>
           <div className="mt-3 text-xs text-green-600">
-            ✓ Your feedback will be customized for {selectedProfile.name} speakers learning English
+            ✓ Your feedback will be customized for {selectedProfile.name}{" "}
+            speakers learning English
           </div>
         </div>
       )}

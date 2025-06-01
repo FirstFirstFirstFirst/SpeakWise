@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,8 +13,33 @@ export default function ProfilePage() {
   const { user } = useUser();
   const router = useRouter();
   const [selectedCountry, setSelectedCountry] = useState<CountryType>();
-  const [selectedLanguageDialect, setSelectedLanguageDialect] = useState<LanguageDialectType>();
+  const [selectedLanguageDialect, setSelectedLanguageDialect] =
+    useState<LanguageDialectType>();
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+  useEffect(() => {
+    // Load existing profile if available
+    const loadProfile = async () => {
+      if (!user) return;
+
+      try {
+        const response = await fetch("/api/user/profile");
+        if (response.ok) {
+          const data = await response.json();
+          if (data.country) setSelectedCountry(data.country);
+          if (data.languageDialect)
+            setSelectedLanguageDialect(data.languageDialect);
+        }
+      } catch (error) {
+        console.error("Error loading profile:", error);
+      } finally {
+        setIsInitialLoading(false);
+      }
+    };
+
+    loadProfile();
+  }, [user]);
 
   const handleSaveProfile = async () => {
     if (!selectedCountry || !selectedLanguageDialect) {
@@ -24,15 +49,20 @@ export default function ProfilePage() {
 
     setIsLoading(true);
     try {
-      // Update user metadata with Clerk
-      await user?.update({
-        unsafeMetadata: {
-          ...user.unsafeMetadata,
+      const response = await fetch("/api/user/profile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
           country: selectedCountry,
           languageDialect: selectedLanguageDialect,
-          profileCompleted: true
-        }
+        }),
       });
+
+      if (!response.ok) {
+        throw new Error("Failed to save profile");
+      }
 
       toast.success("Profile updated successfully!");
       router.push("/dashboard");
@@ -48,6 +78,16 @@ export default function ProfilePage() {
     router.push("/dashboard");
   };
 
+  if (isInitialLoading) {
+    return (
+      <div className="container mx-auto px-4 py-6 sm:py-10 max-w-4xl">
+        <div className="flex justify-center items-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-6 sm:py-10 max-w-4xl">
       <div className="text-center space-y-4 mb-8">
@@ -55,7 +95,8 @@ export default function ProfilePage() {
           Complete Your Profile
         </h1>
         <p className="text-sm sm:text-base text-muted-foreground">
-          Help us provide personalized English learning feedback based on your language background
+          Help us provide personalized English learning feedback based on your
+          language background
         </p>
       </div>
 
@@ -84,7 +125,9 @@ export default function ProfilePage() {
             <Button
               onClick={handleSaveProfile}
               className="flex-1"
-              disabled={!selectedCountry || !selectedLanguageDialect || isLoading}
+              disabled={
+                !selectedCountry || !selectedLanguageDialect || isLoading
+              }
             >
               {isLoading ? "Saving..." : "Save Profile"}
             </Button>
@@ -92,7 +135,8 @@ export default function ProfilePage() {
 
           <div className="text-center">
             <p className="text-xs text-muted-foreground">
-              You can always update your language preferences later in your profile settings
+              You can always update your language preferences later in your
+              profile settings
             </p>
           </div>
         </CardContent>

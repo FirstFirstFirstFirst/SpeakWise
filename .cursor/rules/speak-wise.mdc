@@ -1,0 +1,171 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+You are an expert in TypeScript, Node.js, Next.js App Router, React, Clerk Authentication, AI APIs (Google Generative AI, AssemblyAI), Radix UI, Tailwind CSS, and modern web development.
+
+# Key Principles
+
+- Write concise, technical TypeScript code with accurate examples
+- Use functional and declarative programming patterns; avoid classes
+- Prefer iteration and modularization over code duplication
+- Use descriptive variable names with auxiliary verbs (e.g., isLoading, hasError)
+- Structure files: exported component, subcomponents, helpers, static content, types
+
+# Naming Conventions
+
+- Use lowercase with dashes for directories (e.g., components/audio-processor)
+- Favor named exports for components
+- Use PascalCase for component names and interfaces
+- Use camelCase for functions and variables
+
+# TypeScript Usage
+
+- Use TypeScript for all code; prefer interfaces over types
+- Avoid enums; use const objects or maps instead
+- Use functional components with TypeScript interfaces
+- Implement proper error handling with custom error types
+- Use strict type checking and avoid `any`
+
+# Syntax and Formatting
+
+- Use the "function" keyword for pure functions
+- Avoid unnecessary curly braces in conditionals; use concise syntax
+- Use declarative JSX
+- Omit semicolons for cleaner code
+- Use early returns for error conditions
+
+# React/Next.js Best Practices
+
+- Use functional components with TypeScript interfaces
+- Minimize 'use client' usage; favor React Server Components (RSC)
+- Use 'use client' only for Web API access in small components
+- Wrap client components in Suspense with fallback
+- Use dynamic loading for non-critical components
+- Implement proper error boundaries
+
+# Authentication (Clerk)
+
+- Use Clerk's Next.js hooks and components properly
+- Implement proper auth guards and redirects
+- Handle authentication states gracefully
+- Use server-side authentication checks when needed
+
+# AI Integration Guidelines
+
+- Handle AI API calls with proper error handling and timeouts
+- Implement loading states for AI operations
+- Use streaming responses when available (Google Generative AI)
+- Handle rate limits and API errors gracefully
+- Sanitize and validate AI inputs/outputs
+
+# Audio Processing (AssemblyAI)
+
+- Handle file uploads securely using proper form validation
+- Implement proper audio file validation (format, size, duration)
+- Show progress indicators for long-running transcription tasks
+- Handle WebSocket connections properly for real-time updates
+- Implement proper cleanup for audio resources
+
+# UI and Styling
+
+- Use Tailwind CSS with a mobile-first approach
+- Implement responsive design patterns
+- Use Radix UI components for accessibility
+- Follow WCAG guidelines for accessibility
+- Use semantic HTML elements
+
+# Performance Optimization
+
+- Optimize images: use WebP format, include size data, implement lazy loading
+- Use React.memo, useMemo, and useCallback appropriately
+- Implement proper caching strategies
+- Use Next.js built-in optimization features
+- Minimize bundle size with proper tree-shaking
+
+# Error Handling
+
+- Implement comprehensive error boundaries
+- Use try-catch blocks for async operations
+- Provide user-friendly error messages
+- Log errors appropriately for debugging
+- Handle network failures gracefully
+
+# File Management
+
+- Use proper file upload handling with formidable
+- Implement file validation and security checks
+- Handle large file uploads with progress indicators
+- Use proper file storage solutions (Vercel Blob)
+- Clean up temporary files properly
+
+# PDF Generation (jsPDF)
+
+- Handle PDF generation on the server side when possible
+- Implement proper error handling for PDF operations
+- Optimize PDF size and quality
+- Handle large documents efficiently
+
+# Data Visualization (Lightweight Charts)
+
+- Use proper chart configurations for performance
+- Implement responsive chart designs
+- Handle real-time data updates efficiently
+- Provide proper accessibility for charts
+
+# State Management
+
+- Use React's built-in state management (useState, useReducer)
+- Lift state up appropriately
+- Use context sparingly for truly global state
+- Implement proper state persistence when needed
+
+# API Routes
+
+- Use proper HTTP methods and status codes
+- Implement request validation with proper schemas
+- Handle CORS properly
+- Use proper authentication middleware
+- Implement rate limiting for public APIs
+
+# Development Priorities
+- Regional dialect specialization (Mandarin, Cantonese, Thai, Vietnamese, Burmese, Lao, Khmer variants)
+- Voice journal time capsule for progress tracking
+- Achievement system with certificates
+- LMS integration (Moodle/Canvas)
+
+# Environment Variables
+
+- Use Next.js environment variable conventions
+- Keep sensitive data in server-side only variables
+- Provide proper fallbacks for missing environment variables
+- Document required environment variables
+
+# Testing Considerations
+
+- Write testable code with proper separation of concerns
+- Mock external API calls properly
+- Test authentication flows thoroughly
+- Test file upload and processing workflows
+
+# Security
+
+- Validate all user inputs
+- Sanitize data before AI processing
+- Use proper CSRF protection
+- Implement proper file upload security
+- Follow OWASP security guidelines
+
+# Key Conventions
+
+1. Prioritize Web Vitals (LCP, CLS, FID)
+2. Use Next.js App Router for routing and state changes
+3. Implement proper loading and error states
+4. Use proper TypeScript strict mode
+5. Follow React best practices and hooks rules
+
+
+
+
+Remember to handle the unique aspects of audio processing, AI integration, and real-time features that your SpeakWise application require
