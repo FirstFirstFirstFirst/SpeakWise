@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDistanceToNow } from "date-fns";
 import { Play, Pause } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 interface VoiceRecordingWithFeedback {
   id: string;
@@ -26,15 +26,85 @@ interface VoiceTimelineProps {
 
 export function VoiceTimeline({ recordings }: VoiceTimelineProps) {
   const [playingId, setPlayingId] = useState<string | null>(null);
+  const [currentTime, setCurrentTime] = useState<{ [key: string]: number }>({});
+  const audioRefs = useRef<{ [key: string]: HTMLAudioElement }>({});
 
-  const togglePlay = (recordingId: string) => {
+  // Initialize audio elements for each recording
+  useEffect(() => {
+    recordings.forEach((recording) => {
+      if (!audioRefs.current[recording.id]) {
+        const audio = new Audio(recording.blobUrl);
+        audio.preload = "metadata";
+
+        // Add event listeners
+        audio.addEventListener("timeupdate", () => {
+          setCurrentTime((prev) => ({
+            ...prev,
+            [recording.id]: audio.currentTime,
+          }));
+        });
+
+        audio.addEventListener("ended", () => {
+          setPlayingId(null);
+          setCurrentTime((prev) => ({
+            ...prev,
+            [recording.id]: 0,
+          }));
+        });
+
+        audio.addEventListener("error", (e) => {
+          console.error("Audio error for recording", recording.id, e);
+          setPlayingId(null);
+        });
+
+        audioRefs.current[recording.id] = audio;
+      }
+    });
+
+    // Cleanup function
+    return () => {
+      Object.values(audioRefs.current).forEach((audio) => {
+        audio.pause();
+        audio.removeEventListener("timeupdate", () => {});
+        audio.removeEventListener("ended", () => {});
+        audio.removeEventListener("error", () => {});
+      });
+    };
+  }, [recordings]);
+
+  const togglePlay = async (recordingId: string) => {
+    const audio = audioRefs.current[recordingId];
+    if (!audio) return;
+
     if (playingId === recordingId) {
-      // Stop playing
+      // Pause current recording
+      audio.pause();
       setPlayingId(null);
     } else {
-      // Start playing
-      setPlayingId(recordingId);
+      // Stop any currently playing audio
+      if (playingId) {
+        const currentAudio = audioRefs.current[playingId];
+        if (currentAudio) {
+          currentAudio.pause();
+          currentAudio.currentTime = 0;
+        }
+      }
+
+      // Play new recording
+      try {
+        await audio.play();
+        setPlayingId(recordingId);
+      } catch (error) {
+        console.error("Error playing audio:", error);
+        setPlayingId(null);
+      }
     }
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   return (
@@ -60,6 +130,7 @@ export function VoiceTimeline({ recordings }: VoiceTimelineProps) {
                       variant="outline"
                       size="icon"
                       onClick={() => togglePlay(recording.id)}
+                      disabled={!audioRefs.current[recording.id]}
                     >
                       {playingId === recording.id ? (
                         <Pause className="h-4 w-4" />
@@ -78,10 +149,31 @@ export function VoiceTimeline({ recordings }: VoiceTimelineProps) {
                       </p>
                     </div>
                   </div>
-                  <div className="text-sm text-muted-foreground">
-                    {Math.round(recording.duration)}s
+                  <div className="text-sm text-muted-foreground flex items-center space-x-2">
+                    {playingId === recording.id && (
+                      <span>
+                        {formatTime(currentTime[recording.id] || 0)} /
+                      </span>
+                    )}
+                    <span>{formatTime(recording.duration)}</span>
                   </div>
                 </div>
+
+                {/* Progress bar */}
+                {playingId === recording.id && (
+                  <div className="w-full bg-gray-200 rounded-full h-1.5">
+                    <div
+                      className="bg-blue-600 h-1.5 rounded-full transition-all duration-100"
+                      style={{
+                        width: `${
+                          ((currentTime[recording.id] || 0) /
+                            recording.duration) *
+                          100
+                        }%`,
+                      }}
+                    ></div>
+                  </div>
+                )}
 
                 {recording.transcript && (
                   <p className="text-sm text-muted-foreground">

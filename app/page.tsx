@@ -253,6 +253,7 @@ export default function RecordPage() {
       }
 
       const recording = await uploadResponse.json();
+      console.log("Recording created:", recording); // Debug log
 
       // Send the URL to AssemblyAI for transcription
       const transcriptResponse = await fetch("/api/transcribe", {
@@ -262,7 +263,7 @@ export default function RecordPage() {
         },
         body: JSON.stringify({
           audioUrl: recording.blobUrl,
-          recordingId: recording.id,
+          recordingId: recording.id, // Pass recordingId to transcribe
           userId: user?.id,
           userEmail: user?.emailAddresses[0]?.emailAddress,
         }),
@@ -282,17 +283,18 @@ export default function RecordPage() {
       }
 
       // Store transcription data in localStorage for analysis page
-      // 🔥 FIX: Also store the languageDialect
       localStorage.setItem("speechTranscript", transcript);
       localStorage.setItem("speechDuration", duration.toString());
       localStorage.setItem("userId", user!.id);
-      localStorage.setItem("languageDialect", userLanguageDialect); // ← Added this line
+      localStorage.setItem("languageDialect", userLanguageDialect);
+      localStorage.setItem("recordingId", recording.id); // Store recordingId
 
       console.log("Stored in localStorage:", {
         transcript: transcript.substring(0, 100) + "...",
         duration,
         userId: user!.id,
         languageDialect: userLanguageDialect,
+        recordingId: recording.id,
       });
 
       toast.dismiss(loadingToastId);

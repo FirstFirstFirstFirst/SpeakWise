@@ -32,7 +32,7 @@ export async function POST(request: Request) {
   );
 
   try {
-    const { transcript, userId, userEmail, languageDialect } =
+    const { transcript, userId, userEmail, languageDialect, recordingId } =
       await request.json();
 
     console.log(`[SPEECH_ANALYSIS] Request payload:`, {
@@ -40,6 +40,7 @@ export async function POST(request: Request) {
       userId,
       userEmail,
       languageDialect,
+      recordingId, // Added recordingId logging
       transcriptPreview:
         transcript?.substring(0, 100) + (transcript?.length > 100 ? "..." : ""),
     });
@@ -65,6 +66,19 @@ export async function POST(request: Request) {
       console.warn(`[SPEECH_ANALYSIS] Missing userId`, { userEmail });
       return NextResponse.json(
         { error: "User ID is required" },
+        { status: 400 }
+      );
+    }
+
+    // Validate recordingId if provided (optional for backward compatibility)
+    if (recordingId && typeof recordingId !== "string") {
+      console.warn(`[SPEECH_ANALYSIS] Invalid recordingId provided`, {
+        userId,
+        recordingId,
+        recordingIdType: typeof recordingId,
+      });
+      return NextResponse.json(
+        { error: "Valid recording ID is required" },
         { status: 400 }
       );
     }
@@ -281,6 +295,81 @@ export async function POST(request: Request) {
         feedbackObject.languageDialectSpecificFeedback,
     };
 
+    // SAVE FEEDBACK TO DATABASE IF RECORDING ID IS PROVIDED
+    if (recordingId) {
+      try {
+        console.log(`[SPEECH_ANALYSIS] Saving feedback to database`, {
+          userId,
+          recordingId,
+        });
+
+        // Check if feedback already exists for this recording
+        const existingFeedback = await prisma.voiceRecordingFeedback.findUnique(
+          {
+            where: { recordingId },
+          }
+        );
+
+        if (existingFeedback) {
+          console.log(`[SPEECH_ANALYSIS] Updating existing feedback`, {
+            userId,
+            recordingId,
+            existingFeedbackId: existingFeedback.id,
+          });
+
+          // Update existing feedback
+          await prisma.voiceRecordingFeedback.update({
+            where: { recordingId },
+            data: {
+              pronunciation: validatedFeedback.pronunciation,
+              grammar: validatedFeedback.grammar,
+              fluency: validatedFeedback.fluency,
+              vocabulary: validatedFeedback.vocabulary,
+            },
+          });
+        } else {
+          console.log(`[SPEECH_ANALYSIS] Creating new feedback record`, {
+            userId,
+            recordingId,
+          });
+
+          // Create new feedback record
+          await prisma.voiceRecordingFeedback.create({
+            data: {
+              recordingId,
+              pronunciation: validatedFeedback.pronunciation,
+              grammar: validatedFeedback.grammar,
+              fluency: validatedFeedback.fluency,
+              vocabulary: validatedFeedback.vocabulary,
+            },
+          });
+        }
+
+        console.log(`[SPEECH_ANALYSIS] Feedback saved successfully`, {
+          userId,
+          recordingId,
+        });
+      } catch (dbSaveError) {
+        console.error(
+          `[SPEECH_ANALYSIS] Failed to save feedback to database:`,
+          {
+            userId,
+            recordingId,
+            error: dbSaveError,
+          }
+        );
+        // Don't fail the entire request if database save fails
+        // The feedback will still be returned to the client
+      }
+    } else {
+      console.log(
+        `[SPEECH_ANALYSIS] No recordingId provided, skipping database save`,
+        {
+          userId,
+        }
+      );
+    }
+
     const endTime = Date.now();
     const totalLatency = endTime - startTime;
 
@@ -300,6 +389,7 @@ export async function POST(request: Request) {
         fluency: validatedFeedback.fluency.length,
         vocabulary: validatedFeedback.vocabulary.length,
       },
+      recordingId: recordingId || "not provided",
     });
 
     return NextResponse.json(validatedFeedback);

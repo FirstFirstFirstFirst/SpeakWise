@@ -17,6 +17,7 @@ export default function AnalysisPage() {
   const router = useRouter();
   const [transcript, setTranscript] = useState("");
   const [duration, setDuration] = useState(0);
+  const [recordingId, setRecordingId] = useState<string | null>(null); // Added recordingId state
   const [feedback, setFeedback] = useState({
     pronunciation: "",
     grammar: "",
@@ -39,7 +40,8 @@ export default function AnalysisPage() {
     const savedDuration = localStorage.getItem("speechDuration") || "0";
     const savedUserId = localStorage.getItem("userId") || "";
     const savedLanguageDialect =
-      localStorage.getItem("languageDialect") || "general"; // 🔥 FIX: Get languageDialect
+      localStorage.getItem("languageDialect") || "general";
+    const savedRecordingId = localStorage.getItem("recordingId") || null; // Get recordingId from localStorage
 
     console.log("Retrieved from localStorage:", {
       transcriptLength: savedTranscript.length,
@@ -47,6 +49,7 @@ export default function AnalysisPage() {
       userId: savedUserId,
       currentUserId: user.id,
       languageDialect: savedLanguageDialect,
+      recordingId: savedRecordingId,
     });
 
     // Verify the analysis belongs to the current user
@@ -56,7 +59,7 @@ export default function AnalysisPage() {
       return;
     }
 
-    // 🔥 FIX: Better validation for transcript
+    // Better validation for transcript
     if (!savedTranscript || savedTranscript.trim().length === 0) {
       toast.error("No transcript found - please record your speech first");
       router.push("/");
@@ -65,9 +68,10 @@ export default function AnalysisPage() {
 
     setTranscript(savedTranscript);
     setDuration(parseInt(savedDuration, 10));
+    setRecordingId(savedRecordingId);
 
     // Analyze transcript using Gemini API
-    analyzeSpeech(savedTranscript, savedLanguageDialect); // 🔥 FIX: Pass languageDialect
+    analyzeSpeech(savedTranscript, savedLanguageDialect, savedRecordingId);
   }, [user, router]);
 
   // Download transcript as PDF
@@ -148,27 +152,34 @@ export default function AnalysisPage() {
 
   const analyzeSpeech = async (
     speechTranscript: string,
-    languageDialect: string = "general"
+    languageDialect: string = "general",
+    recordingId: string | null = null
   ) => {
     setIsLoading(true);
     console.log("Starting speech analysis with:", {
       transcriptLength: speechTranscript.length,
       userId: user?.id,
       languageDialect,
+      recordingId,
     });
 
     try {
+      const requestBody = {
+        transcript: speechTranscript,
+        userId: user?.id,
+        userEmail: user?.emailAddresses[0]?.emailAddress,
+        languageDialect: languageDialect,
+        ...(recordingId && { recordingId }), // Include recordingId if available
+      };
+
+      console.log("Sending analysis request with:", requestBody);
+
       const response = await fetch("/api/analyze-speech", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          transcript: speechTranscript,
-          userId: user?.id,
-          userEmail: user?.emailAddresses[0]?.emailAddress,
-          languageDialect: languageDialect, // 🔥 FIX: Include languageDialect
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       console.log("Analysis API response status:", response.status);
@@ -193,7 +204,11 @@ export default function AnalysisPage() {
       const generatedSuggestions = generateImprovementSuggestions(feedbackData);
       setSuggestions(generatedSuggestions);
 
-      toast.success("Analysis completed successfully!");
+      if (recordingId) {
+        toast.success("Analysis completed and saved to your dashboard!");
+      } else {
+        toast.success("Analysis completed successfully!");
+      }
     } catch (error) {
       console.error("Error analyzing speech:", error);
       toast.error(
@@ -254,6 +269,11 @@ export default function AnalysisPage() {
               }`
             : "Review your speech analysis and get personalized feedback"}
         </p>
+        {recordingId && (
+          <p className="text-xs text-green-600">
+            ✓ This analysis has been saved to your dashboard
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
@@ -380,10 +400,18 @@ export default function AnalysisPage() {
               )}
             </div>
           </div>
-          <div className="mt-4 sm:mt-6 flex justify-center">
-            <Link href="/" className="block sm:inline-block ">
+          <div className="mt-4 sm:mt-6 flex justify-center gap-4">
+            <Link href="/dashboard" className="block sm:inline-block">
               <Button
                 variant="outline"
+                size="sm"
+                className="text-xs sm:text-sm w-full cursor-pointer"
+              >
+                View Dashboard
+              </Button>
+            </Link>
+            <Link href="/" className="block sm:inline-block">
+              <Button
                 size="sm"
                 className="text-xs sm:text-sm w-full cursor-pointer"
               >
