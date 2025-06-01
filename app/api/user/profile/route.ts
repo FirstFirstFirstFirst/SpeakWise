@@ -9,12 +9,9 @@ const prisma = new PrismaClient();
 export async function GET() {
   try {
     const user = await currentUser();
-    
+
     if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Get user profile
@@ -29,7 +26,7 @@ export async function GET() {
 
     if (!userProfile) {
       return NextResponse.json(
-        { 
+        {
           userId: user.id,
           country: null,
           languageDialect: null,
@@ -61,12 +58,9 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const user = await currentUser();
-    
+
     if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { country, languageDialect } = await request.json();

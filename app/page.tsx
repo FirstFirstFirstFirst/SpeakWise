@@ -6,12 +6,15 @@ import { Upload, Mic, StopCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
+import { useUserLanguageDialect } from "@/hooks/use-user-langauge-dialect";
 
 export default function RecordPage() {
   const { user } = useUser();
+  const { languageDialect: userLanguageDialect } = useUserLanguageDialect();
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioDuration, setAudioDuration] = useState<number>(0); // Add this state
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -20,6 +23,7 @@ export default function RecordPage() {
   // Recording timer states
   const [recordingTime, setRecordingTime] = useState(0);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const recordedDurationRef = useRef<number>(0);
   const MAX_RECORDING_TIME = 5 * 60; // 5 minutes in seconds
 
   const [currentPrompt, setCurrentPrompt] = useState("");
@@ -52,6 +56,38 @@ export default function RecordPage() {
     setCurrentPrompt(getRandomPrompt());
   };
 
+  // Function to get audio duration
+  const getAudioDuration = (file: Blob): Promise<number> => {
+    return new Promise((resolve) => {
+      const audio = new Audio();
+      const url = URL.createObjectURL(file);
+
+      // Add timeout to prevent hanging
+      const timeout = setTimeout(() => {
+        URL.revokeObjectURL(url);
+        resolve(0);
+      }, 5000);
+
+      audio.addEventListener("loadedmetadata", () => {
+        clearTimeout(timeout);
+        URL.revokeObjectURL(url);
+        const duration = audio.duration;
+        resolve(isNaN(duration) ? 0 : Math.floor(duration));
+      });
+
+      audio.addEventListener("error", () => {
+        clearTimeout(timeout);
+        URL.revokeObjectURL(url);
+        resolve(0);
+      });
+
+      // Load the audio
+      audio.preload = "metadata";
+      audio.src = url;
+      audio.load(); // Force load
+    });
+  };
+
   // Timer function to track recording duration
   useEffect(() => {
     if (isRecording) {
@@ -60,7 +96,7 @@ export default function RecordPage() {
           const newTime = prevTime + 1;
           if (newTime >= MAX_RECORDING_TIME) {
             stopRecording();
-            return 0;
+            return 0; // Reset on max time
           }
           return newTime;
         });
@@ -70,7 +106,7 @@ export default function RecordPage() {
         clearInterval(recordingTimerRef.current);
         recordingTimerRef.current = null;
       }
-      setRecordingTime(0);
+      setRecordingTime(0); // Reset when not recording
     }
 
     return () => {
@@ -89,7 +125,24 @@ export default function RecordPage() {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+
+      // Try different MIME types for better compatibility
+      const mimeTypes = [
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/mp4",
+        "audio/wav",
+      ];
+
+      let mimeType = "audio/wav"; // fallback
+      for (const type of mimeTypes) {
+        if (MediaRecorder.isTypeSupported(type)) {
+          mimeType = type;
+          break;
+        }
+      }
+
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
@@ -99,13 +152,18 @@ export default function RecordPage() {
         }
       };
 
-      mediaRecorder.onstop = () => {
+      mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, {
           type: "audio/wav",
         });
         const audioUrl = URL.createObjectURL(audioBlob);
+
+        const duration = recordedDurationRef.current;
+        console.log("Duration from ref:", duration); // Debug log
+
         setAudioBlob(audioBlob);
         setAudioUrl(audioUrl);
+        setAudioDuration(duration);
         stopMediaTracks(stream);
       };
 
@@ -121,6 +179,10 @@ export default function RecordPage() {
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
+      // Capture the duration RIGHT NOW before anything else happens
+      recordedDurationRef.current = recordingTime;
+      console.log("Duration captured in stopRecording:", recordingTime); // Debug log
+
       mediaRecorderRef.current.stop();
       setIsRecording(false);
     }
@@ -136,12 +198,25 @@ export default function RecordPage() {
     fileInputRef.current?.click();
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = event.target.files?.[0];
     if (file && file.type.startsWith("audio/")) {
       const url = URL.createObjectURL(file);
+
+      // Try to get duration, but don't fail if we can't
+      let duration = 0;
+      try {
+        duration = await getAudioDuration(file);
+      } catch (error) {
+        console.warn("Could not get audio duration:", error);
+        // Duration will remain 0, which is fine
+      }
+
       setAudioBlob(file);
       setAudioUrl(url);
+      setAudioDuration(duration);
     } else if (file) {
       toast.error("Please upload an audio file");
     }
@@ -154,17 +229,8 @@ export default function RecordPage() {
       return;
     }
 
-    // Check if user is authenticated
-    if (!user) {
-      toast.error("Please sign in to analyze your speech");
-      router.push("/sign-in");
-      return;
-    }
-
-    // Show loading toast
-    toast.loading("Your speech is being analyzed...");
-
     try {
+      console.log("Duration", audioDuration.toString());
       // Convert blob to File object
       const audioFile = new File([audioBlob], "recording.wav", {
         type: "audio/wav",
@@ -173,11 +239,8 @@ export default function RecordPage() {
       // Create FormData to upload the file
       const formData = new FormData();
       formData.append("audio", audioFile);
-      formData.append("duration", recordingTime.toString());
-      formData.append(
-        "languageDialect",
-        (user.publicMetadata.languageDialect as string) || "general"
-      );
+      formData.append("duration", audioDuration.toString());
+      formData.append("languageDialect", userLanguageDialect);
 
       // Upload the file using voice-recordings endpoint
       const uploadResponse = await fetch("/api/voice-recordings", {
@@ -190,6 +253,7 @@ export default function RecordPage() {
       }
 
       const recording = await uploadResponse.json();
+      console.log("Recording created:", recording); // Debug log
 
       // Send the URL to AssemblyAI for transcription
       const transcriptResponse = await fetch("/api/transcribe", {
@@ -199,9 +263,9 @@ export default function RecordPage() {
         },
         body: JSON.stringify({
           audioUrl: recording.blobUrl,
-          recordingId: recording.id,
-          userId: user.id,
-          userEmail: user.emailAddresses[0]?.emailAddress,
+          recordingId: recording.id, // Pass recordingId to transcribe
+          userId: user?.id,
+          userEmail: user?.emailAddresses[0]?.emailAddress,
         }),
       });
 
@@ -211,10 +275,27 @@ export default function RecordPage() {
 
       const { transcript, duration } = await transcriptResponse.json();
 
+      // Validate transcript before storing
+      if (!transcript || transcript.trim().length === 0) {
+        throw new Error(
+          "No transcript generated - please try recording again with clearer speech"
+        );
+      }
+
       // Store transcription data in localStorage for analysis page
       localStorage.setItem("speechTranscript", transcript);
       localStorage.setItem("speechDuration", duration.toString());
-      localStorage.setItem("userId", user.id);
+      localStorage.setItem("userId", user!.id);
+      localStorage.setItem("languageDialect", userLanguageDialect);
+      localStorage.setItem("recordingId", recording.id); // Store recordingId
+
+      console.log("Stored in localStorage:", {
+        transcript: transcript.substring(0, 100) + "...",
+        duration,
+        userId: user!.id,
+        languageDialect: userLanguageDialect,
+        recordingId: recording.id,
+      });
 
       toast.dismiss(loadingToastId);
       toast.success("Analysis Complete!");
@@ -224,7 +305,11 @@ export default function RecordPage() {
     } catch (error) {
       console.error("Error analyzing audio:", error);
       toast.dismiss(loadingToastId);
-      toast.error("Error analyzing speech. Please try again.");
+      toast.error(
+        `Error analyzing speech: ${
+          error instanceof Error ? error.message : "Please try again."
+        }`
+      );
     }
   };
 
@@ -283,6 +368,11 @@ export default function RecordPage() {
           {audioUrl ? (
             <div className="w-full">
               <audio className="w-full" src={audioUrl} controls />
+              {audioDuration > 0 && (
+                <p className="text-sm text-muted-foreground mt-2 text-center">
+                  Duration: {formatTime(audioDuration)}
+                </p>
+              )}
             </div>
           ) : (
             <div
@@ -353,6 +443,7 @@ export default function RecordPage() {
                 onClick={() => {
                   setAudioUrl(null);
                   setAudioBlob(null);
+                  setAudioDuration(0); // Reset duration
                 }}
               >
                 Record Again

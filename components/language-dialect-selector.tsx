@@ -294,6 +294,7 @@ export function LanguageDialectSelector({
                       <div className="flex justify-end space-x-2 pt-2">
                         <Button
                           variant="outline"
+                          className="cursor-pointer"
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -303,6 +304,7 @@ export function LanguageDialectSelector({
                           Cancel
                         </Button>
                         <Button
+                          className="bg-black text-white cursor-pointer"
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
