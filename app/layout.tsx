@@ -6,6 +6,7 @@ import Navbar from "@/components/navbar";
 import { Toaster } from "@/components/ui/sonner";
 import { ClerkProviderWrapper } from "@/app/providers/clerk-provider";
 const inter = Inter({ subsets: ["latin"] });
+import { ProfileProtection } from "@/components/profile-protection";
 
 export const metadata: Metadata = {
   title: "SpeakWise - English Language Learning",
@@ -21,13 +22,15 @@ export default function RootLayout({
     <ClerkProviderWrapper>
       <html lang="en">
         <body className={inter.className}>
-          <div className="min-h-screen flex flex-col bg-background">
-            <Navbar />
-            <main className="flex-1 flex items-center justify-center">
-              {children}
-            </main>
-            <Toaster />
-          </div>
+          <ProfileProtection>
+            <div className="min-h-screen flex flex-col bg-background">
+              <Navbar />
+              <main className="flex-1 flex items-center justify-center">
+                {children}
+              </main>
+              <Toaster />
+            </div>
+          </ProfileProtection>
         </body>
       </html>
     </ClerkProviderWrapper>
